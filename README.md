@@ -2,4 +2,4 @@
  
 CUNY MS in Data Analytics: DATA 607 - Data Acquisition and Management projects and HW. 
 
-Instructor:  Andy Catlin
+__Instructor:__  Andy Catlin
