@@ -1,0 +1,55 @@
+---
+title: "607-Week1Lab"
+author: "Walt Wells, Fall 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Data & Environment Prep
+```{r, comment=NA, message=FALSE, warning=FALSE}
+if (!require("RCurl")) install.packages('RCurl')
+if (!require("data.table")) install.packages('data.table')
+if (!require("dplyr")) install.packages('dplyr')
+if (!require("plyr")) install.packages('plyr')
+
+# Import Data
+if(!exists("dat")) {
+    URL <- "https://archive.ics.uci.edu/ml/machine-learning-databases/bridges/bridges.data.version2"
+    x <- getURL(URL)
+    dat <- fread(x, header=FALSE)
+}
+
+# Change to DF instead of DT
+dat <- data.frame(dat)
+
+# add names 
+n <- c("IDENTIF", "RIVER", "LOCATION", "ERECTED", "PURPOSE", "LENGTH", "LANES", "CLEAR-G", "T-OR-D", "MATERIAL", "SPAN", "REL-L", "TYPE") 
+names(dat) <- n
+
+# subset
+dat <- select(dat, RIVER, PURPOSE, TYPE)
+
+# change river names
+dat$RIVER <- revalue(dat$RIVER, c("A"="Allegheny", "M"="Monongahela", "O"="Ohio"))
+dat <- filter(dat, RIVER != "Y")
+dat <- filter(dat, TYPE != "?")
+
+#set factors
+dat$RIVER <- as.factor(dat$RIVER)
+dat$PURPOSE <- as.factor(dat$PURPOSE)
+dat$TYPE <- as.factor(dat$TYPE)
+# Preview
+head(dat)
+```
+
+### Simple Visualizations
+```{r}
+plot(dat$RIVER, dat$PURPOSE, xlab="River", ylab="Bridge Purpose", main="Mosaic Plot showing Bridge Purpose by River")
+
+plot(dat$RIVER, dat$TYPE, xlab="River", ylab="Type", main="Mosaic Plot showing Bridge Type by River")
+
+plot(dat$PURPOSE, dat$TYPE, xlab="Purpose", ylab="Type", main="Mosaic Plot showing Bridge Type by Purpose")
+```
