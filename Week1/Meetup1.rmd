@@ -1,0 +1,53 @@
+---
+title: "Meetup1"
+author: "Catlin"
+date: "September 1, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## How to handle unexpected values (1):  Pittsburgh bridges
+
+Pittsburgh's three rivers, according to the documentation, are "A", "M", and "O".  
+
+Note that the code below was written using "base R".  Later in the course, we'll look at a number of R pac
+
+```{r bridges}
+
+# sources: http://rpubs.com/robertwsellers/IS607_Homework2
+# https://archive.ics.uci.edu/ml/machine-learning-databases/bridges/bridges.names
+library(RCurl)
+if(!exists("df_bridges")) {
+    URL <- "https://archive.ics.uci.edu/ml/machine-learning-databases/bridges/bridges.data.version2"
+    x <- getURL(URL)
+    df_bridges <- read.csv(textConnection(x), header=FALSE, sep=",")
+}
+
+colnames(df_bridges) <- c("IDENTIF", "RIVER", "LOCATION","ERECTED","PURPOSE","LENGTH","LANES","CLEAR-G","T-OR-D","MATERIAL","SPAN","REL-L","TYPE")
+# bridges <- subset(df_bridges, PURPOSE == "HIGHWAY" & RIVER == "A", select = c(RIVER, ERECTED, TYPE))
+bridges <- subset(df_bridges, select = c(RIVER, ERECTED, TYPE))
+#View (bridges)
+
+table(bridges$RIVER)
+
+
+```
+
+## How to handle unexpected values (2):  NYC airport weather
+
+What does each weather observation represent?
+How should we identify then handle outlier data?
+
+
+```{r nycflights}
+#install.packages("nycflights13")
+library(nycflights13)
+dim(weather)
+#View(weather)
+plot(weather$wind_speed)
+subset(weather, wind_speed > 100, select = c(origin, year, month, day, hour, wind_speed))
+```
+
