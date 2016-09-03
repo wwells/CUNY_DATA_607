@@ -49,7 +49,7 @@ VALUES (1, "Don't Breathe"),
        (6, "Star Trek Beyond");
 
 INSERT INTO movies.reviews (review_rank, person_id, movie_id)
-VALUES (5, 1, 1),
+VALUES (4, 1, 1),
 	   (3, 2, 1),
        (5, 3, 1), 
        (4, 4, 1),
