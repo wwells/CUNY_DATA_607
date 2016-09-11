@@ -122,29 +122,112 @@ $(document).ready(function () {
 
 
 <div id="simpsons-regex" class="section level2">
-<h2>3 Simpsons Regex</h2>
-<pre class="r"><code>raw.data &lt;-&quot;555-1239Moe Szyslak(636) 555-0113Burns, C. Montgomery555-6542Rev. Timothy Lovejoy555 8904Ned Flanders636-555-3226Simpson, Homer5553642Dr. Julius Hibbert&quot;   
+<h2>3. Simpsons RegEx</h2>
+<pre class="r"><code>library(stringr)
 
-name &lt;- unlist(str_extract_all(raw.data, &quot;[[:alpha:]., ]{2,}&quot;))</code></pre>
+raw.data &lt;-&quot;555-1239Moe Szyslak(636) 555-0113Burns, C. Montgomery555-6542Rev. Timothy Lovejoy555 8904Ned Flanders636-555-3226Simpson, Homer5553642Dr. Julius Hibbert&quot;   
+
+name &lt;- unlist(str_extract_all(raw.data, &quot;[[:alpha:]., ]{2,}&quot;))
+name</code></pre>
+<pre><code>[1] &quot;Moe Szyslak&quot;          &quot;Burns, C. Montgomery&quot; &quot;Rev. Timothy Lovejoy&quot;
+[4] &quot;Ned Flanders&quot;         &quot;Simpson, Homer&quot;       &quot;Dr. Julius Hibbert&quot;  </code></pre>
 <ol style="list-style-type: lower-alpha">
 <li>Use the tools of this chapter to rearrange the vector so that all elements conform to the standard first_name last_name.</li>
 <li>Construct a logical vector indicating whether a character has a title (i.e., Rev. and Dr.).</li>
 <li>Construct a logical vector indicating whether a character has a second name.</li>
 </ol>
+<pre class="r"><code>### create a function to extract last names
+get_last &lt;- function(list){
+    last &lt;- str_extract(list, '[[:alpha:]]{1,}\\,|\\b [[:alpha:]]{2,}')
+    last &lt;- str_extract(last, &quot;[[:alpha:]]{1,}&quot;)
+    last
+}
+
+### create a function to extract first names
+get_first &lt;- function(list) {
+    first &lt;- str_extract(list, '[[:alpha:]]{1,} |\\. [[:alpha:]]{1,}|\\, [[:alpha:]]{2,}')
+    first &lt;- str_extract(first, &quot;[[:alpha:]]{1,}&quot;)
+    first
+}
+
+# run functions to create df
+simpsons &lt;- data.frame(first = get_first(name), 
+                      last = get_last(name))
+
+simpsons$fullname &lt;- paste0(simpsons$first, &quot; &quot;, simpsons$last)
+
+# create logicial vector describing if title
+simpsons$title &lt;- str_detect(name, 'Dr.|Rev.')
+
+# create a logical vector describing if second name
+simpsons$secondname &lt;- str_detect(name, ' [:alpha:]{1}\\. ')
+
+# final product
+simpsons</code></pre>
+<pre><code>       first     last         fullname title secondname
+1        Moe  Szyslak      Moe Szyslak FALSE      FALSE
+2 Montgomery    Burns Montgomery Burns FALSE       TRUE
+3    Timothy  Lovejoy  Timothy Lovejoy  TRUE      FALSE
+4        Ned Flanders     Ned Flanders FALSE      FALSE
+5      Homer  Simpson    Homer Simpson FALSE      FALSE
+6     Julius  Hibbert   Julius Hibbert  TRUE      FALSE</code></pre>
 </div>
-<div id="describe-the-types-of-strings-that-conform-to-the-following-regular-expressions-and-construct-an-example-that-is-matched-by-the-regular-expression." class="section level2">
-<h2>4 Describe the types of strings that conform to the following regular expressions and construct an example that is matched by the regular expression.</h2>
-<ol style="list-style-type: lower-alpha">
-<li>[0-9]+\$</li>
-<li>\b[a-z]{1,4}\b</li>
-<li>.*?\.txt$</li>
-<li>\d{2}/\d{2}/\d{4}</li>
-<li>&lt;(.+?)&gt;.+?&lt;/\1&gt;</li>
-</ol>
+<div id="regex-testing" class="section level2">
+<h2>4. RegEx Testing</h2>
+<p>Describe the types of strings that conform to the following regular expressions and construct an example that is matched by the regular expression.</p>
+<div id="a" class="section level4">
+<h4>a)</h4>
+<p>This regex will return a string of one or more numbers followed by a ‘$’ sign.</p>
+<pre class="r"><code>#(a) [0-9]+\\$
+a &lt;- &quot;342$a66$.2.2$a$&quot;
+unlist(str_extract_all(a, '[0-9]+\\$'))</code></pre>
+<pre><code>[1] &quot;342$&quot; &quot;66$&quot;  &quot;2$&quot;  </code></pre>
 </div>
-<div id="the-following-code-hides-a-secret-message.-crack-it-with-r-and-regular-expressions.-hint-some-of-the-characters-are-more-revealing-than-others-the-code-snippet-is-also-available-in-the-materials-at-www.r-datacollection.com." class="section level2">
-<h2>9 The following code hides a secret message. Crack it with R and regular expressions. Hint: Some of the characters are more revealing than others! The code snippet is also available in the materials at www.r-datacollection.com.</h2>
-<pre class="r"><code>encrypted &lt;- &quot;clcopCow1zmstc0d87wnkig7OvdicpNuggvhryn92Gjuwczi8hqrfpRxs5Aj5dwpn0TanwoUwisdij7Lj8kpf03AT5Idr3coc0bt7yczjatOaootj55t3Nj3ne6c4Sfek.r1w1YwwojigOd6vrfUrbz2.2bkAnbhzgv4R9i05zEcrop.wAgnb.SqoU65fPa1otfb7wEm24k6t3sR9zqe5fy89n6Nd5t9kc4fE905gmc4Rgxo5nhDk!gr&quot;</code></pre>
+<div id="b" class="section level4">
+<h4>b)</h4>
+<p>This regex will return a string of one to four lowercase alpha characters so long as they are bounded by non-word characters. Note that digits are considered to be word characters, thus the “two” does not show up because the “2” is not a boundary, and is not [a-z].</p>
+<pre class="r"><code>#(b) \b[a-z]{1,4}\\b
+b &lt;- &quot;u-one 2two.three FOUR%four$;etc&quot;
+unlist(str_extract_all(b, '\\b[a-z]{1,4}\\b'))</code></pre>
+<pre><code>[1] &quot;u&quot;    &quot;one&quot;  &quot;four&quot; &quot;etc&quot; </code></pre>
+</div>
+<div id="c" class="section level4">
+<h4>c)</h4>
+<p>This regex will return any string that ends with ‘.txt’. If it does not end with .txt, it will not return anything.</p>
+<pre class="r"><code>#(c) .*?\\.txt$
+c &lt;- &quot;332!34_2.txt else.png dark.txt&quot;
+unlist(str_extract_all(c, '.*?\\.txt$'))</code></pre>
+<pre><code>[1] &quot;332!34_2.txt else.png dark.txt&quot;</code></pre>
+</div>
+<div id="d" class="section level4">
+<h4>d)</h4>
+<p>This regex will return any string in the form ‘dd/dd/dddd’ where ‘d’ is a digit. This is a common form for dates.</p>
+<pre class="r"><code>#(d) \\d{2}/\\d{2}/\\d{4}
+d &lt;- &quot;09/10/2016 10/12/2014 2015/01/02&quot;
+unlist(str_extract_all(d, '\\d{2}/\\d{2}/\\d{4}'))</code></pre>
+<pre><code>[1] &quot;09/10/2016&quot; &quot;10/12/2014&quot;</code></pre>
+</div>
+<div id="e" class="section level4">
+<h4>e)</h4>
+<p>This regex uses backreferencing to return any string that starts with a <code>&lt;text&gt;</code> and ends with <code>&lt;/text&gt;</code>. This would be a good way to search through html or xml.</p>
+<pre class="r"><code>#(e) &lt;(.+?)&gt;.+?&lt;/\\1&gt;
+e &lt;- &quot;&lt;div&gt;sample text&lt;/div&gt; &lt;ol&gt;&lt;li&gt;thingone&lt;/li&gt;&lt;li&gt;thingtwo&lt;/li&gt;&lt;/ol&gt;&quot;
+unlist(str_extract_all(e, '&lt;(.+?)&gt;.+?&lt;/\\1&gt;'))</code></pre>
+<pre><code>[1] &quot;&lt;div&gt;sample text&lt;/div&gt;&quot;                     
+[2] &quot;&lt;ol&gt;&lt;li&gt;thingone&lt;/li&gt;&lt;li&gt;thingtwo&lt;/li&gt;&lt;/ol&gt;&quot;</code></pre>
+</div>
+</div>
+<div id="secret-message" class="section level2">
+<h2>9. Secret Message</h2>
+<p>The following code hides a secret message. Crack it with R and regular expressions. Hint: Some of the characters are more revealing than others! The code snippet is also available in the materials at www.r-datacollection.com.</p>
+<pre class="r"><code>encrypted &lt;- &quot;clcopCow1zmstc0d87wnkig7OvdicpNuggvhryn92Gjuwczi8hqrfpRxs5Aj5dwpn0TanwoUwisdij7Lj8kpf03AT5Idr3coc0bt7yczjatOaootj55t3Nj3ne6c4Sfek.r1w1YwwojigOd6vrfUrbz2.2bkAnbhzgv4R9i05zEcrop.wAgnb.SqoU65fPa1otfb7wEm24k6t3sR9zqe5fy89n6Nd5t9kc4fE905gmc4Rgxo5nhDk!gr&quot;
+
+## remove all nums, lowercase letters
+cracked &lt;- unlist(str_extract_all(encrypted, '[^[a-z]|[0-9]]'))
+## collapse above, then split by '.'
+cracked &lt;- paste0(unlist(strsplit(paste0(cracked, collapse=&quot;&quot;), &quot;.&quot;, fixed=TRUE)), collapse=&quot; &quot;)
+cracked </code></pre>
+<pre><code>[1] &quot;CONGRATULATIONS YOU ARE A SUPERNERD!&quot;</code></pre>
 </div>
 
 
