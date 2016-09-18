@@ -1,0 +1,169 @@
+---
+title: 'DATA 607:  Project 1, Chess Tournament Data Prep'
+author: "Walt Wells, Fall 2016"
+output:
+  html_document:
+    theme: lumen
+    toc: yes
+  pdf_document:
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+## Abstract
+
+In this project our goal is to take a txt file with chess tournament results and parse and clean the txt, returning a data frame / csv file that can be used for analysis.   We should have 64 total records in our completed dataset.  
+
+The final dataset should have the following fields:
+
+```{r include=FALSE}
+df <- data.frame(rbind(c("Gary Hua", "ON", 6.0, 1794, 1605)))
+names(df) <- c("PlayerName", "State", "TotalPoints", "PreRating", "AvgOppPreRating")
+
+```
+
+```{r, echo=FALSE}
+knitr::kable(df)
+```
+
+## Preparation
+### Environment Prep
+
+```{r, warning=FALSE, message=FALSE}
+if (!require("stringr")) install.packages('stringr')
+if (!require("DT")) install.packages('DT')
+if (!require("ggplot2")) install.packages('ggplot2')
+```
+
+### Data Import
+
+```{r, warning=FALSE, comment=NA}
+raw <- readLines('tournamentinfo.txt')
+head(raw, 10)
+```
+
+## Data Grouping
+Since the data is already essentially laid out in a table, albeit one that's not easily useable for analysis, it may be helpful to narrow down the areas our regular expressions will pattern match.  
+
+### Vertical Splitting
+We may be able to extract necessary fields easily by pattern matching only in certain sections of a line since the data is laid out in a table format.   Let's find these region boundaries.
+
+```{r, comment=NA}
+#where can we find the table breaks?
+b0 <- 0
+b1 <- unname(str_locate_all(pattern = '\\|', raw[5])[[1]][1,1])
+b2 <- unname(str_locate_all(pattern = '\\|', raw[5])[[1]][2,1])
+b3 <- unname(str_locate_all(pattern = '\\|', raw[5])[[1]][3,1])
+b4 <- max(nchar(raw))
+```
+
+We now know that in the initial data we can find required data in the following string positions in each line: 
+
+* Section 1 (Num, State): `r b0` - `r b1`
+* Section 2 (Name, Pre-Rating): `r b1` - `r b2`
+* Section 3 (Points): `r b2` - `r b3`
+* Section 4 (Opponent IDs): `r b3` - `r b4`
+
+### Horizontal Splitting
+
+We'll end up looking for pattern matches in only half the lines of the raw data, and different lines will serve different purposes. 
+
+```{r, comment=NA}
+# Group1 = Num, Name, Points, Opponent IDs
+g1row <- seq(5, 196, 3)
+# Group2 = State, Rating
+g2row <- seq(6, 196, 3)
+
+# subset for easy searching
+group1 <- raw[g1row]
+group2 <- raw[g2row]
+```
+
+## Data Field Creation
+Now let's start extracting our desired fields.  We expect that when calculating the Avg Opponent Pre-Rating, we'll be able to reference row index and we don't need a dedicated column for the player row number value referenced in the tournment rounds 
+
+### Player Name 
+```{r, comment=NA}
+# subset by verical vector
+namesub <- substr(group1, b1+1, b2-2)
+namesub <- str_trim(namesub)
+PlayerName <- str_to_title(namesub)
+```
+
+### Player State
+```{r}
+statesub <- substr(group2, b0, b1-1)
+State <- str_trim(statesub)
+
+# start our df
+chess <- data.frame(PlayerName, State)
+```
+
+### Total Points
+```{r}
+pointsub <- substr(group1, b2+1, b3-1)
+chess$TotalPoints <- sprintf("%.1f", as.numeric(pointsub))
+```
+
+### Player Pre-Rating
+
+```{r}
+presub <- substr(group2, b1+1, b2-1)
+presub <- str_extract(presub, ': *\\d{2,}')
+chess$PreRating <- as.integer(str_extract(presub, '\\d{2,}'))
+```
+
+### Avg Opponent Pre-Rating
+
+```{r}
+oppsub <- substr(group1, b3+1, b4)
+oppsub <- str_extract_all(oppsub, '\\b\\d{1,}')
+oppsub <- as.matrix(oppsub)
+
+# let's build a function that calcs the opponent pre-rating using the oppsub list
+oppcalc <- function(list, pos) {
+    temp <- list[pos]
+    #print(list[pos])
+    for (place in temp){
+        rating <- 0
+        counter <- 0
+        for(i in place) {
+            counter <- counter + 1
+            rating <- rating + chess$PreRating[as.numeric(i)]
+        }
+        rating <- round(rating / counter)
+        #print(rating)
+    }
+    return(rating)
+}
+
+chess$AvgOppPreRating <- apply(oppsub, 1, oppcalc)
+
+```
+
+## Final Dataset
+
+### Review and Export
+```{r}
+datatable(chess)
+
+# export
+write.csv(chess, "chessData.csv", row.names=FALSE)
+```
+
+### Exploratory Plot
+
+```{r}
+p <- ggplot(chess, aes(PreRating, AvgOppPreRating)) + geom_point(aes(color=TotalPoints)) + ggtitle("Comparing Player Pre-Rating to \n Avg Opponent Pre-Rating by Total Points Gained")
+p
+```
+
+### Conclusion
+
+Since the data was already roughly grouped and human readable as an organized table, we were able to use position markers to group and split the data.   This approach allowed us to use less complex regular expressions to isolate and extract the desired strings.  
+
+A data scientist more skilled with regular expressions is likely to find a more elegant solution, but this approach assures success.
