@@ -1,0 +1,121 @@
+---
+title: "Week5:Data Wrangling with R, Garrett Grolemund"
+output:
+  html_document:
+    theme: lumen
+    toc: yes
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Setup Environment
+
+```{r, warning=FALSE, message=FALSE}
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(EDAWR)
+library(nycflights13)
+```
+
+### Tbl
+Useful way to look at large data.
+
+```{r}
+tbl_df(diamonds)
+```
+
+### Pipe
+Originally from the magrittr package, imported to dplyr.  
+
+```{r}
+select(diamonds, carat)
+#same as
+diamonds %>%
+    select(carat)
+```
+
+## Wrangling
+
+### 3 sample datasets
+
+```{r}
+storms
+cases
+pollution
+```
+
+### tidyr
+
+```{r}
+# gather
+cases %>%
+    gather("year", "n", 2:4)
+
+# spread
+pollution %>%
+    spread("size", "amount")
+
+# separate
+storms2 <- separate(storms, date, c("year", "month", "day"), sep ="-")
+storms2
+
+# unite
+storms <- unite(storms2, "date", year, month, day, sep="-")
+storms
+```
+
+### dplyr
+
+#### select() - Extract existing var
+```{r}
+storms %>%
+    select(storm, pressure)
+## can do everything but easily: 
+storms %>%
+    select(-storm)
+```
+
+#### filter() - extract existing obs
+```{r}
+storms %>%
+    filter(wind >= 50, storm %in% c("Alberto", "Alex", "Allison"))
+```
+
+#### mutate() - derive new var from existing vars
+```{r}
+storms %>%
+    mutate(ratio=round(pressure/wind, 2), inverse=round(ratio^-1, 2))
+```
+
+#### summarise() - change the unit of analysis
+```{r}
+pollution %>%
+    summarise(median=median(amount), variance = var(amount))
+```
+
+#### piping
+
+```{r}
+storms %>%
+    filter(wind >= 50) %>%
+    select(storm, pressure) 
+
+#YES!!!!  pipe shortcut: command - shift - m
+```
+
+#### group_by()
+```{r}
+pollution %>% 
+    group_by(city) %>% 
+    summarise(mean=mean(amount), sum=sum(amount), n=n())
+```
+
+### Joining
+
+```{r}
+left_join(songs, artists, by = "name")
+```
