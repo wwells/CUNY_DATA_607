@@ -24,8 +24,6 @@ In this project our goal is to take a .csv of untidy data showing counts of whet
 ```{r, warning=FALSE, message=FALSE}
 if (!require("dplyr")) install.packages('dplyr')
 if (!require("tidyr")) install.packages('tidyr')
-if (!require("DT")) install.packages('DT')
-if (!require("ggplot2")) install.packages('ggplot2')
 ```
 
 ### Data Import
@@ -53,6 +51,9 @@ tidy <- airlines %>%
     gather(cities, count, 3:7) %>% 
     spread(status, count)
 
+#update col
+names(tidy)[4] <- "ontime"
+
 # let's review our progress
 knitr::kable(tidy)
 ```
@@ -60,6 +61,37 @@ knitr::kable(tidy)
 
 ## Data Analysis
 
+### Ratios by City
+
+```{r}
+#let's get some delay ratios
+tidy <- tidy %>%
+    mutate(total=ontime + delayed, delayratio=round(delayed/total, 3)) 
+
+#let's plot these delay ratios
+dotchart(tidy$delayratio, groups = tidy$cities, labels=tidy$airline, main = "Ratio of Delayed Flights by City")
+```
+
+
+### Ratios in Total
+```{r}
+
+summary <- tidy %>% 
+    group_by(airline) %>% 
+    summarise(delayed = sum(delayed), ontime = sum(ontime), total = sum(total)) %>%
+    mutate(delayratio = round(delayed/total, 3))
+
+knitr::kable(summary)
+
+#let's plot delay ratios
+dotchart(summary$delayratio, labels=summary$airline, main = "Ratio of Delayed Flights Across All Cities")
+
+```
 
 ## Conclusion
+
+The individual city delay ratios by airline show that ALASKA airlines had a lower individual delay ratio than AMWEST in every single city.   However the aggregated data shows that AMWEST had a lower overall delay ratio, due to the larger volume of flights.   
+
+This is an example of [Simpson's paradox](https://en.wikipedia.org/wiki/Simpson%27s_paradox). 
+
 
