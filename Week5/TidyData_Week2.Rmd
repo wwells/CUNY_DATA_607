@@ -1,0 +1,65 @@
+---
+title: 'DATA 607:  Tidy Data, Week 5'
+author: "Walt Wells, Fall 2016"
+output:
+  html_document:
+    theme: lumen
+    toc: yes
+  pdf_document:
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+## Abstract
+
+In this project our goal is to take a .csv of untidy data showing counts of whether two airlines were on time or delayed flying into multiple destinations, transform and tidy the data, and then do an analysis to compare the arrival delays for both airlines.  
+
+## Preparation
+### Environment Prep
+
+```{r, warning=FALSE, message=FALSE}
+if (!require("dplyr")) install.packages('dplyr')
+if (!require("tidyr")) install.packages('tidyr')
+if (!require("DT")) install.packages('DT')
+if (!require("ggplot2")) install.packages('ggplot2')
+```
+
+### Data Import
+
+```{r}
+airlines <- read.csv("airline.csv")
+knitr::kable(airlines)
+```
+
+## Data Transformation
+
+```{r, comment=NA}
+# remove middle NA obs
+airlines <- airlines[-3,]
+
+# add in missing airline values
+airlines[2,1] <- "ALASKA"
+airlines[4,1] <- "AMWEST"
+
+# rename cols
+names(airlines)[c(1,2)] <- c("airline", "status")
+
+# tidy data
+tidy <- airlines %>% 
+    gather(cities, count, 3:7) %>% 
+    spread(status, count)
+
+# let's review our progress
+knitr::kable(tidy)
+```
+
+
+## Data Analysis
+
+
+## Conclusion
+
