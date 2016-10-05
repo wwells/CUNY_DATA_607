@@ -1,0 +1,262 @@
+---
+title: 'DATA 607:  Tidy Data, Project 2'
+author: "Walt Wells, Fall 2016"
+output:
+  html_document:
+    theme: lumen
+    toc: yes
+  pdf_document:
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Environment Prep
+
+```{r, warning=FALSE, message=FALSE}
+if (!require('dplyr')) install.packages('dplyr')
+if (!require('tidyr')) install.packages('tidyr')
+if (!require('DT')) install.packages('DT')
+if (!require('ggplot2')) install.packages('ggplot2')
+if (!require('xlsx')) install.packages('xlsx')
+if (!require('reshape2')) install.packages('reshape2')
+```
+
+# Dataset 1: Census Data Population Estimates
+
+* __Ref:__   Inspired by Brandon O'Hara Post - "Census Data"
+* __Data Source:__ 2010 Census, "The estimates are based on the 2010 Census and reflect changes to the April 1, 2010 population due to the Count Question Resolution program and geographic program revisions." 
+* __Data Citation:__ Annual Estimates of the Resident Population: April 1, 2010 to July 1, 2015
+Source: U.S. Census Bureau, Population Division 
+* __Additional Information:__ [Link](http://factfinder.census.gov/faces/affhelp/jsf/pages/metadata.xhtml?lang=en&type=table&id=table.en.PEP_2015_PEPANNRES#main_content)
+* __Population estimate (Population Estimates Program):__ [The Census Bureau's Population Estimates Program (PEP) produces July 1 estimates for years after the last published decennial census (2000), as well as for past decades. Existing data series such as births, deaths, Federal tax returns, Medicare enrollment, and immigration, are used to update the decennial census base counts. POP estimates are used in Federal funding allocations, in setting the levels of national surveys, and in monitoring recent demographic changes."](http://factfinder.census.gov/help/en/population_estimate_population_estimates_program.htm)
+
+## Abstract
+
+Let's revise the original question offerings, knowing that these are projections based on the 2010 data, and instead ask:
+
+* From 2010 - 2015 which states are projected to have the most population growth?
+* Least?
+* Which states represent projections of mean population growth?
+
+
+## Data Import
+
+```{r, comment=NA}
+pop <- read.csv("PEP_2015_PEPANNRES_with_ann.csv")
+pop_meta <- read.csv("PEP_2015_PEPANNRES_metadata.csv")
+knitr::kable(pop_meta)
+```
+
+## Data Prep
+
+We learn that ["The population count or estimate used as the starting point in the estimates process. It can be the last Census count or the estimate for a previous date. Also referred to as the "base population"](http://factfinder.census.gov/help/en/estimates_base_population_estimates_program.htm). If we compared the rescen42010 or the resbase42010 variables to the 2015 projections, they would not reflect the same time period (Apr vs July).   As a result, we conclude that we are only interested in looking at the respop72010 population estimate variable.  
+
+We are also only interested in states (and DC + Puerto Rico), not the US as a whole or particular regions.
+
+I have opted to leave the data in wide format, since it made it easier to calculate a the summary statistic "perdiff", indicating the percent difference between the 2015 and 2010 population estimates.
+
+```{r, comment=NA}
+# select columns and obvs
+pop <- pop[6:57, ] %>% 
+    select(GEO.display.label, respop72010, respop72015) %>%
+    mutate(diff=respop72015 - respop72010, perdiff=round((diff / respop72010) * 100, 3))
+datatable(pop)
+```
+
+## Analysis
+
+We can use the data table to easily sort through the summary statistic perdiff to find the states with the most estimated population growth (North Dakota, +12.215%) and least population growth (Puerto Rico, -6.646%).
+
+We can calculate the mean population difference, and then look for the states within a range of the mean. 
+
+```{r, comment=NA}
+m <- round(mean(pop$perdiff), 3)
+m
+pop[pop$perdiff > m - .1 & pop$perdiff < m + .1,] %>%
+    arrange(perdiff)
+
+```
+
+# Dataset 2: Student Alcohol Consumption
+
+* __Ref:__   Inspired by Oluwakemi Omotunde Post - "Student Alcohol Consumption"
+* __Data Source:__ UCI ML Repository [Source](https://archive.ics.uci.edu/ml/datasets/STUDENT+ALCOHOL+CONSUMPTION)
+* __Data Citation:__ Using Data Mining To Predict Secondary School Student Alcohol Consumption.
+Fabio Pagnotta, Hossain Mohammad Amran
+Department of Computer Science,University of Camerino
+* __Additional Information:__ [Link](https://archive.ics.uci.edu/ml/datasets/STUDENT+ALCOHOL+CONSUMPTION#)
+
+## Abstract
+
+Let's attempt to see if there is a correlation between alcohol consumption and gender.  Once our data is prepared, we can use a Chi square test for independence to determine if there is a relationship between these variables.
+
+## Data Import
+
+NOTE: The UCI ML Repository offers a [handy .R](https://archive.ics.uci.edu/ml/machine-learning-databases/00356/) file to create a single dataset that merges the Math and Portuguese classes.   We used that file to create the .csv imported below. 
+
+```{r, comment=NA}
+adat <- read.csv("studentalcohol.csv")
+```
+
+## Data Prep
+
+We are only interested in a few variables here, Gender and Alcohol Consumption.   Because of the way the csv was created, merging two other data frames representing classes for Math and Portuguese, we have duplicate observations of alcohol consumption.   
+
+```{r, comment=NA}
+alco <- adat %>% 
+    select(sex, Dalc.x, Dalc.y, Walc.x, Walc.y)
+
+table(alco$Dalc.x - alco$Dalc.y)
+```
+
+From this table we can see that there are some slight differences in the way people are reporting alcohol consumption between their classes (or errors in the data).   Just to be sure, let's create a variable that takes and average Dalc and Walc.   We will then use those averages to create a summary statistic using a method introduced in the paper cited above.  
+
+$$Alc = \frac{Walc * 2 + Dalc * 5}{7}$$ 
+
+```{r, comment=NA}
+alco <- alco %>% 
+    mutate(Dalc = (Dalc.x+Dalc.y)/2, Walc = (Walc.x+Walc.y)/2) %>% 
+    mutate(alc = round((Dalc * 5 + Walc * 2)/7)) %>% 
+    select(sex, alc)
+
+table(alco$alc, alco$sex)
+```
+
+## Analysis
+
+Let's setup a chi-square to test for independence between these two categorical variables. 
+
+$H_0:$ Sex and Alc are independant
+
+$H_A:$ Sex and Alc are not independant
+
+$\alpha: .05$
+
+```{r, warning=FALSE, comment=NA}
+ggplot(alco,aes(x=alc))+geom_density()+facet_grid(~sex)
+
+chisq.test(table(alco$alc, alco$sex))
+```
+
+Our p-value is well below our $\alpha$, so we can reject the $H_0$ and determine that gender and alcohol consumption are not independant.
+
+# Dataset 3: Lending Club Granted Loans 2016 Q2
+
+* __Ref:__   Inspired by Bin Lin Post - "Lending Club Data"
+* __Data Source:__ Lending Club [Source](https://www.lendingclub.com/info/download-data.action)
+* __Data Citation:__ Unknown
+* __Data Dictionary:__ [Link](https://resources.lendingclub.com/LCDataDictionary.xlsx)
+* __About the Source:__ "Lending Club is a US peer-to-peer lending company, headquartered in San Francisco, California. It was the first peer-to-peer lender to register its offerings as securities with the Securities and Exchange Commission (SEC), and to offer loan trading on a secondary market. Lending Club operates an online lending platform that enables borrowers to obtain a loan, and investors to purchase notes backed by payments made on loans. Lending Club is the world's largest peer-to-peer lending platform. The company claims that $15.98 billion in loans had been originated through its platform up to 31 December 2015." [Link](https://en.wikipedia.org/wiki/Lending_Club)
+
+## Abstract
+
+Let's look at the following variables and try and come up with some good visualizations to plot their relationships. 
+
+* income, loan amounts, interest rates, loan grade
+
+## Data Import
+
+```{r, comment=NA, cache=TRUE}
+ldat <- read.csv("LoanStats_2016Q2.csv")
+loan_meta <- read.xlsx("LCDataDictionary.xlsx", 1)
+loan_meta <- loan_meta[,1:2]
+#knitr::kable(loan_meta)
+```
+
+## Data Prep
+
+```{r, comment=NA, cache=TRUE, warning=FALSE}
+#subset
+loan <- ldat %>% 
+    select(annual_inc, loan_amnt, int_rate, grade) 
+
+#remove NA obs
+loan <- loan[complete.cases(loan), ]
+
+# make int_rate useable
+loan$int_rate <- as.numeric(unlist(strsplit(as.character(loan$int_rate), '%')))
+
+# bin loan amount, and income amounts
+loan$loanbin <- findInterval(loan$loan_amnt, seq(0, 30000, 10000)) 
+loan$loanbin[loan$loanbin==1] <- "<$10,000"
+loan$loanbin[loan$loanbin==2] <- "<$20,000"
+loan$loanbin[loan$loanbin==3] <- "<$30,000"
+loan$loanbin[loan$loanbin==4] <- "<=$40,000"
+loan$loanbin <- factor(loan$loanbin, levels=c("<$10,000", "<$20,000", "<$30,000", "<=$40,000"))
+
+# bin annual income
+loan$incomebin <- findInterval(loan$annual_inc, seq(0, 100000, 50000))
+loan$incomebin[loan$incomebin==1] <- "<$50,000"
+loan$incomebin[loan$incomebin==2] <- "<$100,000"
+loan$incomebin[loan$incomebin==3] <- ">=$100,000"
+#loan$incomebin <- as.factor(loan$incomebin)
+loan$incomebin <- factor(loan$incomebin, levels=c("<$50,000", "<$100,000", ">=$100,000"))
+
+# bin interest rates
+loan$intbin <- findInterval(loan$int_rate, seq(5, 15, 3))
+loan$intbin[loan$intbin==1] <- "5-8%"
+loan$intbin[loan$intbin==2] <- "8-11%"
+loan$intbin[loan$intbin==3] <- "11-14%"
+loan$intbin[loan$intbin==4] <- "14-31%"
+loan$intbin <- factor(loan$intbin, levels=c("5-8%", "8-11%", "11-14%", "14-31%"))
+
+
+datatable(loan)
+
+```
+
+## Analysis
+
+```{r, warning=FALSE, message=FALSE}
+ggplot(loan, aes(x=loan_amnt)) + geom_histogram(aes(fill=..count..)) + facet_grid(.~grade) + labs(title = "Distribution of Loan Amounts by Grade", xlab="") + theme(axis.text.x = element_text(angle=90, hjust=1))
+
+ggplot(loan, aes(x=factor(incomebin), y=loan_amnt, fill=factor(intbin))) + geom_boxplot() + facet_grid(. ~ grade) + labs(title = "Boxplot of Loan Amount by Income, Grade, and Interest Rate", x="Income", y="Loan Amount") + theme(axis.text.x = element_text(angle=90, hjust=1)) + scale_fill_discrete(name="Interest\nRate")
+
+ggplot(loan, aes(x=factor(loanbin), y=int_rate)) + geom_violin(alpha=0.5, color="gray") +  geom_jitter(alpha=0.1, aes(color=grade)) + facet_grid(. ~ incomebin) + labs(title = "Violin Plot of Interest Rate by Loan Amount, Income, and Grade", x="Loan Amount", y="Interest Rate") + theme(axis.text.x = element_text(angle=90, hjust=1)) + scale_fill_discrete(name="Annual\nIncome")
+```
+
+By binning our numeric variables into ordered categorical variables we are able to create visualizations that can quickly capture the relationships between the variables.   
+
+Let us conclude by using the code in the handy guide linked to below to create a correlation matrix of our numeric variables using Pearson's R and the cor function.
+
+__REF:__  [http://www.sthda.com/english/wiki/ggplot2-quick-correlation-matrix-heatmap-r-software-and-data-visualization](http://www.sthda.com/english/wiki/ggplot2-quick-correlation-matrix-heatmap-r-software-and-data-visualization)
+
+```{r}
+#let's also get a correlation of our numeric vars
+thecor<-round(cor(loan[,c("annual_inc", "loan_amnt", "int_rate")], method="pearson"),2)
+thecor[lower.tri(thecor)]<-NA
+
+get_upper_tri <- function(cormat){
+  cormat[lower.tri(cormat)]<- NA
+  return(cormat)
+}
+
+upper_tri <- get_upper_tri(thecor)
+melted_cormat <- melt(upper_tri, na.rm = TRUE)
+
+ggplot(data = melted_cormat, aes(Var2, Var1, fill = value)) +
+ geom_tile(color = "white") +
+ scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
+    midpoint = 0, limit = c(-1,1), space = "Lab", 
+    name="Pearson\nCorrelation") +
+ theme_minimal() + 
+ theme(axis.text.x = element_text(angle = 45, vjust = 1, 
+    size = 12, hjust = 1))+
+ coord_fixed() + geom_text(aes(Var2, Var1, label = value), color = "black", size = 4) +
+ theme(
+      axis.title.x = element_blank(),
+      axis.title.y = element_blank(),
+      panel.grid.major = element_blank(),
+      panel.border = element_blank(),
+      panel.background = element_blank(),
+      axis.ticks = element_blank(),
+      legend.justification = c(1, 0),
+      legend.position = c(0.6, 0.7),
+      legend.direction = "horizontal")+
+ guides(fill = guide_colorbar(barwidth = 7, barheight = 1,
+                title.position = "top", title.hjust = 0.5))
+
+```
