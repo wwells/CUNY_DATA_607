@@ -1,0 +1,31 @@
+---
+title: 'DATA 607:  HTML, XML, JSON; Week 7'
+author: "Walt Wells, Fall 2016"
+output:
+  html_document:
+    theme: lumen
+    toc: yes
+  pdf_document:
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Abstract
+
+Our goal in this lesson is to create a list of books stored in an HTML table, an XML file, and a JSON file and use R to read and parse the files and store in 3 data frames.   We should then review the resulting data frames and note any differences.  
+
+# Environment Prep
+```{r, warning=FALSE, message=FALSE}
+if (!require('XML')) install.packages('XML')
+```
+
+# XML
+```{r}
+x <- xmlParse("books.xml")
+x.df <- xmlToDataFrame(x)
+knitr::kable(x.df)
+```
+
