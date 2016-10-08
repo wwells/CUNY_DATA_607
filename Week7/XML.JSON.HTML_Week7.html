@@ -124,7 +124,10 @@ $(document).ready(function () {
 <ul>
 <li><a href="#abstract">Abstract</a></li>
 <li><a href="#environment-prep">Environment Prep</a></li>
+<li><a href="#html-table">HTML Table</a></li>
 <li><a href="#xml">XML</a></li>
+<li><a href="#json">JSON</a></li>
+<li><a href="#testing-similarity">Testing Similarity</a></li>
 </ul>
 </div>
 
@@ -134,7 +137,53 @@ $(document).ready(function () {
 </div>
 <div id="environment-prep" class="section level1">
 <h1>Environment Prep</h1>
-<pre class="r"><code>if (!require('XML')) install.packages('XML')</code></pre>
+<pre class="r"><code>if (!require('rvest')) install.packages('rvest')
+if (!require('XML')) install.packages('XML')
+if (!require('jsonlite')) install.packages('jsonlite')</code></pre>
+</div>
+<div id="html-table" class="section level1">
+<h1>HTML Table</h1>
+<pre class="r"><code>h &lt;- read_html(&quot;books.html&quot;) 
+h.df &lt;- data.frame(html_table(h))
+knitr::kable(h.df)</code></pre>
+<table>
+<thead>
+<tr class="header">
+<th align="left">title</th>
+<th align="right">year</th>
+<th align="left">authors</th>
+<th align="left">publisher</th>
+<th align="right">numpages</th>
+<th align="right">goodreadsrank</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">Advanced R</td>
+<td align="right">2015</td>
+<td align="left">Hadley Wickham</td>
+<td align="left">CRC Press</td>
+<td align="right">476</td>
+<td align="right">4.7</td>
+</tr>
+<tr class="even">
+<td align="left">R in Action</td>
+<td align="right">2011</td>
+<td align="left">Robert I. Kabacoff</td>
+<td align="left">Manning Publications</td>
+<td align="right">472</td>
+<td align="right">4.1</td>
+</tr>
+<tr class="odd">
+<td align="left">Automated Data Collection in R</td>
+<td align="right">2015</td>
+<td align="left">Simon Munzert, Christian Rubba, Peter Meissner, Dominic Nyhuis</td>
+<td align="left">Wiley Press</td>
+<td align="right">480</td>
+<td align="right">4.0</td>
+</tr>
+</tbody>
+</table>
 </div>
 <div id="xml" class="section level1">
 <h1>XML</h1>
@@ -179,6 +228,54 @@ knitr::kable(x.df)</code></pre>
 </tr>
 </tbody>
 </table>
+</div>
+<div id="json" class="section level1">
+<h1>JSON</h1>
+<pre class="r"><code>j &lt;- fromJSON(&quot;books.json&quot;)
+j.df &lt;- do.call(&quot;rbind&quot;, lapply(j, data.frame, stringsAsFactors=FALSE))
+rownames(j.df) &lt;- NULL
+knitr::kable(j.df)</code></pre>
+<table>
+<thead>
+<tr class="header">
+<th align="left">title</th>
+<th align="right">year</th>
+<th align="left">authors</th>
+<th align="left">publisher</th>
+<th align="right">numpages</th>
+<th align="right">goodreadsrank</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">Advanced R</td>
+<td align="right">2015</td>
+<td align="left">Hadley Wickham</td>
+<td align="left">CRC Press</td>
+<td align="right">476</td>
+<td align="right">4.7</td>
+</tr>
+<tr class="even">
+<td align="left">R in Action</td>
+<td align="right">2011</td>
+<td align="left">Robert I. Kabacoff</td>
+<td align="left">Manning Publications</td>
+<td align="right">472</td>
+<td align="right">4.1</td>
+</tr>
+<tr class="odd">
+<td align="left">Automated Data Collection in R</td>
+<td align="right">2015</td>
+<td align="left">Simon Munzert, Christian Rubba, Peter Meissner, Dominic Nyhuis</td>
+<td align="left">Wiley Press</td>
+<td align="right">480</td>
+<td align="right">4.0</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="testing-similarity" class="section level1">
+<h1>Testing Similarity</h1>
 </div>
 
 
