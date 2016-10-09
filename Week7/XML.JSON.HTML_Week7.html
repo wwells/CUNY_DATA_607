@@ -124,10 +124,17 @@ $(document).ready(function () {
 <ul>
 <li><a href="#abstract">Abstract</a></li>
 <li><a href="#environment-prep">Environment Prep</a></li>
+<li><a href="#importing">Importing</a><ul>
 <li><a href="#html-table">HTML Table</a></li>
 <li><a href="#xml">XML</a></li>
 <li><a href="#json">JSON</a></li>
-<li><a href="#testing-similarity">Testing Similarity</a></li>
+</ul></li>
+<li><a href="#testing-similarity">Testing Similarity</a><ul>
+<li><a href="#html-to-xml">HTML to XML</a></li>
+<li><a href="#html-to-json">HTML to JSON</a></li>
+<li><a href="#xml-to-json">XML to JSON</a></li>
+</ul></li>
+<li><a href="#conclusion">Conclusion</a></li>
 </ul>
 </div>
 
@@ -141,8 +148,10 @@ $(document).ready(function () {
 if (!require('XML')) install.packages('XML')
 if (!require('jsonlite')) install.packages('jsonlite')</code></pre>
 </div>
-<div id="html-table" class="section level1">
-<h1>HTML Table</h1>
+<div id="importing" class="section level1">
+<h1>Importing</h1>
+<div id="html-table" class="section level2">
+<h2>HTML Table</h2>
 <pre class="r"><code>h &lt;- read_html(&quot;books.html&quot;) 
 h.df &lt;- data.frame(html_table(h))
 knitr::kable(h.df)</code></pre>
@@ -185,8 +194,8 @@ knitr::kable(h.df)</code></pre>
 </tbody>
 </table>
 </div>
-<div id="xml" class="section level1">
-<h1>XML</h1>
+<div id="xml" class="section level2">
+<h2>XML</h2>
 <pre class="r"><code>x &lt;- xmlParse(&quot;books.xml&quot;)
 x.df &lt;- xmlToDataFrame(x)
 knitr::kable(x.df)</code></pre>
@@ -229,8 +238,8 @@ knitr::kable(x.df)</code></pre>
 </tbody>
 </table>
 </div>
-<div id="json" class="section level1">
-<h1>JSON</h1>
+<div id="json" class="section level2">
+<h2>JSON</h2>
 <pre class="r"><code>j &lt;- fromJSON(&quot;books.json&quot;)
 j.df &lt;- do.call(&quot;rbind&quot;, lapply(j, data.frame, stringsAsFactors=FALSE))
 rownames(j.df) &lt;- NULL
@@ -274,8 +283,49 @@ knitr::kable(j.df)</code></pre>
 </tbody>
 </table>
 </div>
+</div>
 <div id="testing-similarity" class="section level1">
 <h1>Testing Similarity</h1>
+<p>They all look equivalent to the eye, but are they? We can use the base package function ‘all.equal’ to test.</p>
+<div id="html-to-xml" class="section level2">
+<h2>HTML to XML</h2>
+<pre class="r"><code>all.equal(h.df, x.df)</code></pre>
+<pre><code>##  [1] &quot;Component \&quot;title\&quot;: Modes: character, numeric&quot;                              
+##  [2] &quot;Component \&quot;title\&quot;: Attributes: &lt; target is NULL, current is list &gt;&quot;        
+##  [3] &quot;Component \&quot;title\&quot;: target is character, current is factor&quot;                 
+##  [4] &quot;Component \&quot;year\&quot;: Attributes: &lt; target is NULL, current is list &gt;&quot;         
+##  [5] &quot;Component \&quot;year\&quot;: target is numeric, current is factor&quot;                    
+##  [6] &quot;Component \&quot;authors\&quot;: Modes: character, numeric&quot;                            
+##  [7] &quot;Component \&quot;authors\&quot;: Attributes: &lt; target is NULL, current is list &gt;&quot;      
+##  [8] &quot;Component \&quot;authors\&quot;: target is character, current is factor&quot;               
+##  [9] &quot;Component \&quot;publisher\&quot;: Modes: character, numeric&quot;                          
+## [10] &quot;Component \&quot;publisher\&quot;: Attributes: &lt; target is NULL, current is list &gt;&quot;    
+## [11] &quot;Component \&quot;publisher\&quot;: target is character, current is factor&quot;             
+## [12] &quot;Component \&quot;numpages\&quot;: Attributes: &lt; target is NULL, current is list &gt;&quot;     
+## [13] &quot;Component \&quot;numpages\&quot;: target is numeric, current is factor&quot;                
+## [14] &quot;Component \&quot;goodreadsrank\&quot;: Attributes: &lt; target is NULL, current is list &gt;&quot;
+## [15] &quot;Component \&quot;goodreadsrank\&quot;: target is numeric, current is factor&quot;</code></pre>
+</div>
+<div id="html-to-json" class="section level2">
+<h2>HTML to JSON</h2>
+<pre class="r"><code>all.equal(h.df, j.df)</code></pre>
+<pre><code>## [1] &quot;Component \&quot;authors\&quot;: Modes: character, list&quot;              
+## [2] &quot;Component \&quot;authors\&quot;: target is character, current is list&quot;</code></pre>
+</div>
+<div id="xml-to-json" class="section level2">
+<h2>XML to JSON</h2>
+<pre class="r"><code>all.equal(x.df, j.df)</code></pre>
+<pre><code>## [1] &quot;Component \&quot;title\&quot;: 'current' is not a factor&quot;        
+## [2] &quot;Component \&quot;year\&quot;: 'current' is not a factor&quot;         
+## [3] &quot;Component \&quot;authors\&quot;: 'current' is not a factor&quot;      
+## [4] &quot;Component \&quot;publisher\&quot;: 'current' is not a factor&quot;    
+## [5] &quot;Component \&quot;numpages\&quot;: 'current' is not a factor&quot;     
+## [6] &quot;Component \&quot;goodreadsrank\&quot;: 'current' is not a factor&quot;</code></pre>
+</div>
+</div>
+<div id="conclusion" class="section level1">
+<h1>Conclusion</h1>
+<p>While the characters in each of the data frames are essentially the same, it would take some additional work to make them completely equivalent. The classes have slight differences, most notably the xml import method resulted in each variable being a factor.</p>
 </div>
 
 
