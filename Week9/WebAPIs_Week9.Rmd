@@ -19,50 +19,53 @@ Our task is to choose one of the New York Times APIs, construct an interface in 
 
 # Environment Prep
 ```{r, warning=FALSE, message=FALSE}
-if (!require('rvest')) install.packages('rvest')
-if (!require('XML')) install.packages('XML')
 if (!require('jsonlite')) install.packages('jsonlite')
+if (!require('dplyr')) install.packages('dplyr')
+if (!require('stringr')) install.packages('stringr')
 ```
 
 # Importing
 
-Let's use the Top StoriesI API.    
+Let's use the Top Stories V1 API and look for stories in the Technology section.  
 
-## Key Reference 
+## Key Config
 
-Source key, add to gitignore (nytapi.r)
+We have stored our API developer Key in a file called 'configAPI.R' and sourced below.   The file is added to .gitignore.   To use the rest of the code below, uncomment and add your developer key below. 
 
 ```{r}
+# get our API key
 source("configAPI.R")
 
+# others should uncomment and paste in their key below
+# key <- "my_developer_key""
+
+# add text required for call
+addkey <- paste0("&api-key=", key)
 ```
 
-## JSON
+## GET
+
 ```{r}
-j <- fromJSON("books.json")
-j.df <- do.call("rbind", lapply(j, data.frame, stringsAsFactors=FALSE))
-rownames(j.df) <- NULL
-knitr::kable(j.df)
+# add url and text required for call
+url <- "https://api.nytimes.com/svc/topstories/v1/technology.json"
+addurl <- paste0(url, "?")
+
+# make call
+feed <- fromJSON(paste0(addurl, addkey))
 ```
 
-# Testing Similarity
+# Setup DF
 
-They all look equivalent to the eye, but are they?   We can use the base package function 'all.equal' to test.    
-
-## HTML to XML
 ```{r}
-all.equal(h.df, x.df)
+sub <- feed$results
+sub <- sub %>% 
+    filter(section=="Technology") %>% 
+#    mutate(pub_date = str_extract(sub$published_date, "[0-9]{4}\\W[0-9]{2}\\W[0-9]{2}")) %>% 
+    select(title, abstract, byline, url, published_date)
 ```
 
-## HTML to JSON
+## Conclusion
+
 ```{r}
-all.equal(h.df, j.df)
+knitr::kable(sub)
 ```
-
-## XML to JSON
-```{r}
-all.equal(x.df, j.df)
-```
-
-# Conclusion
-While the characters in each of the data frames are essentially the same, it would take some additional work to make them completely equivalent.  The classes have slight differences, most notably the xml import method resulted in each variable being a factor.  
