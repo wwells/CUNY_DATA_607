@@ -58,10 +58,12 @@ feed <- fromJSON(paste0(addurl, addkey))
 
 ```{r}
 sub <- feed$results
+sub$pub_date <- unlist(str_extract(sub$published_date, ".+?(?=T)"))
+sub$pub_time <- unlist(str_extract(sub$published_date, "(?<=T)(.*)"))
+
 sub <- sub %>% 
-    filter(section=="Technology") %>% 
-#    mutate(pub_date = str_extract(sub$published_date, "[0-9]{4}\\W[0-9]{2}\\W[0-9]{2}")) %>% 
-    select(title, abstract, byline, url, published_date)
+    filter(section == "Technology") %>% 
+    select(title, abstract, byline, url, pub_date, pub_time)
 ```
 
 ## Conclusion

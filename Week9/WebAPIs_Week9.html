@@ -141,7 +141,8 @@ $(document).ready(function () {
 <div id="environment-prep" class="section level1">
 <h1>Environment Prep</h1>
 <pre class="r"><code>if (!require('jsonlite')) install.packages('jsonlite')
-if (!require('dplyr')) install.packages('dplyr')</code></pre>
+if (!require('dplyr')) install.packages('dplyr')
+if (!require('stringr')) install.packages('stringr')</code></pre>
 </div>
 <div id="importing" class="section level1">
 <h1>Importing</h1>
@@ -160,18 +161,23 @@ addkey &lt;- paste0(&quot;&amp;api-key=&quot;, key)</code></pre>
 </div>
 <div id="get" class="section level2">
 <h2>GET</h2>
-<pre class="r"><code>url &lt;- &quot;https://api.nytimes.com/svc/topstories/v1/technology.json&quot;
+<pre class="r"><code># add url and text required for call
+url &lt;- &quot;https://api.nytimes.com/svc/topstories/v1/technology.json&quot;
 addurl &lt;- paste0(url, &quot;?&quot;)
 
+# make call
 feed &lt;- fromJSON(paste0(addurl, addkey))</code></pre>
 </div>
 </div>
 <div id="setup-df" class="section level1">
 <h1>Setup DF</h1>
 <pre class="r"><code>sub &lt;- feed$results
+sub$pub_date &lt;- unlist(str_extract(sub$published_date, &quot;.+?(?=T)&quot;))
+sub$pub_time &lt;- unlist(str_extract(sub$published_date, &quot;(?&lt;=T)(.*)&quot;))
+
 sub &lt;- sub %&gt;% 
-    filter(section==&quot;Technology&quot;) %&gt;% 
-    select(title, abstract, byline, url, published_date)</code></pre>
+    filter(section == &quot;Technology&quot;) %&gt;% 
+    select(title, abstract, byline, url, pub_date, pub_time)</code></pre>
 <div id="conclusion" class="section level2">
 <h2>Conclusion</h2>
 <pre class="r"><code>knitr::kable(sub)</code></pre>
@@ -182,114 +188,122 @@ sub &lt;- sub %&gt;%
 <th align="left">abstract</th>
 <th align="left">byline</th>
 <th align="left">url</th>
-<th align="left">published_date</th>
+<th align="left">pub_date</th>
+<th align="left">pub_time</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
+<td align="left">AT&amp;T-Time Warner Deal Is a Strike in the Dark</td>
+<td align="left">AT&amp;T’s $85 billion deal for Time Warner is ploy to do something — anything — in the face of a rapidly changing media landscape.</td>
+<td align="left">By FARHAD MANJOO</td>
+<td align="left"><a href="http://www.nytimes.com/2016/10/25/technology/att-time-warner-deal-is-a-strike-in-the-dark.html" class="uri">http://www.nytimes.com/2016/10/25/technology/att-time-warner-deal-is-a-strike-in-the-dark.html</a></td>
+<td align="left">2016-10-24</td>
+<td align="left">19:59:25-5:00</td>
+</tr>
+<tr class="even">
 <td align="left">How to Design Your Own Postage Stamps</td>
 <td align="left">You can add a personal touch to your snail mail by creating custom stamps from your own photos.</td>
 <td align="left">By J. D. BIERSDORFER</td>
 <td align="left"><a href="http://www.nytimes.com/2016/10/25/technology/personaltech/how-to-design-your-own-postage-stamps.html" class="uri">http://www.nytimes.com/2016/10/25/technology/personaltech/how-to-design-your-own-postage-stamps.html</a></td>
-<td align="left">2016-10-24T13:12:35-5:00</td>
+<td align="left">2016-10-24</td>
+<td align="left">13:12:35-5:00</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">Daily Report: Hackers Have New Tools to Bring Down Websites</td>
 <td align="left">The so-called internet of things has the potential to connect billions of objects to the internet. That’s good news for troublemakers.</td>
 <td align="left">By JIM KERSTETTER</td>
 <td align="left"><a href="http://www.nytimes.com/2016/10/25/technology/daily-report-hackers-have-new-tools-to-bring-down-websites.html" class="uri">http://www.nytimes.com/2016/10/25/technology/daily-report-hackers-have-new-tools-to-bring-down-websites.html</a></td>
-<td align="left">2016-10-24T13:05:46-5:00</td>
+<td align="left">2016-10-24</td>
+<td align="left">13:05:46-5:00</td>
+</tr>
+<tr class="even">
+<td align="left">Nintendo Switch Console Is Met With Skepticism From Investors</td>
+<td align="left">The game giant’s shares plummeted after it unveiled the all-in-one hardware, which can be played at home or on the go.</td>
+<td align="left">By JONATHAN SOBLE</td>
+<td align="left"><a href="http://www.nytimes.com/2016/10/22/business/international/nintendo-stock-switch-console.html" class="uri">http://www.nytimes.com/2016/10/22/business/international/nintendo-stock-switch-console.html</a></td>
+<td align="left">2016-10-21</td>
+<td align="left">04:41:07-5:00</td>
 </tr>
 <tr class="odd">
 <td align="left">As Artificial Intelligence Evolves, So Does Its Criminal Potential</td>
 <td align="left">The next generation of online attack tools used by criminals will add machine learning capabilities pioneered by A.I. researchers.</td>
 <td align="left">By JOHN MARKOFF</td>
 <td align="left"><a href="http://www.nytimes.com/2016/10/24/technology/artificial-intelligence-evolves-with-its-criminal-potential.html" class="uri">http://www.nytimes.com/2016/10/24/technology/artificial-intelligence-evolves-with-its-criminal-potential.html</a></td>
-<td align="left">2016-10-23T18:18:22-5:00</td>
-</tr>
-<tr class="even">
-<td align="left">Farhad’s and Mike’s Week in Tech: The Political Evolution of Silicon Valley</td>
-<td align="left">Tech is seeping into everything — but feels blindsided when its politics are called into question. Also, the Apple car and a short-term Twitter hire.</td>
-<td align="left">By FARHAD MANJOO and MIKE ISAAC</td>
-<td align="left"><a href="http://www.nytimes.com/2016/10/22/technology/farhads-and-mikes-week-in-tech-the-political-evolution-of-silicon-valley.html" class="uri">http://www.nytimes.com/2016/10/22/technology/farhads-and-mikes-week-in-tech-the-political-evolution-of-silicon-valley.html</a></td>
-<td align="left">2016-10-22T09:30:01-5:00</td>
-</tr>
-<tr class="odd">
-<td align="left">Nintendo Switch Console Is Met With Skepticism From Investors</td>
-<td align="left">The game giant’s shares plummeted after it unveiled the all-in-one hardware, which can be played at home or on the go.</td>
-<td align="left">By JONATHAN SOBLE</td>
-<td align="left"><a href="http://www.nytimes.com/2016/10/22/business/international/nintendo-stock-switch-console.html" class="uri">http://www.nytimes.com/2016/10/22/business/international/nintendo-stock-switch-console.html</a></td>
-<td align="left">2016-10-21T04:41:07-5:00</td>
+<td align="left">2016-10-23</td>
+<td align="left">18:18:22-5:00</td>
 </tr>
 <tr class="even">
 <td align="left">David Bunnell, Whose Magazines Were Tech World Must-Reads, Dies at 69</td>
 <td align="left">Mr. Bunnell rode the early wave of personal computers, establishing PC Magazine, Macworld and other magazines and contributing to the industry’s explosive growth.</td>
 <td align="left">By JOHN MARKOFF</td>
 <td align="left"><a href="http://www.nytimes.com/2016/10/22/technology/david-bunnell-dead.html" class="uri">http://www.nytimes.com/2016/10/22/technology/david-bunnell-dead.html</a></td>
-<td align="left">2016-10-21T19:23:57-5:00</td>
+<td align="left">2016-10-21</td>
+<td align="left">19:23:57-5:00</td>
 </tr>
 <tr class="odd">
-<td align="left">Airbnb Sues Over New Law Regulating New York Rentals</td>
-<td align="left">Gov. Andrew M. Cuomo has signed a bill that will impose fines up to $7,500 on hosts who rent out housing for fewer than 30 days.</td>
-<td align="left">By KATIE BENNER</td>
-<td align="left"><a href="http://www.nytimes.com/2016/10/22/technology/new-york-passes-law-airbnb.html" class="uri">http://www.nytimes.com/2016/10/22/technology/new-york-passes-law-airbnb.html</a></td>
-<td align="left">2016-10-21T16:55:57-5:00</td>
+<td align="left">Farhad’s and Mike’s Week in Tech: The Political Evolution of Silicon Valley</td>
+<td align="left">Tech is seeping into everything — but feels blindsided when its politics are called into question. Also, the Apple car and a short-term Twitter hire.</td>
+<td align="left">By FARHAD MANJOO and MIKE ISAAC</td>
+<td align="left"><a href="http://www.nytimes.com/2016/10/22/technology/farhads-and-mikes-week-in-tech-the-political-evolution-of-silicon-valley.html" class="uri">http://www.nytimes.com/2016/10/22/technology/farhads-and-mikes-week-in-tech-the-political-evolution-of-silicon-valley.html</a></td>
+<td align="left">2016-10-22</td>
+<td align="left">09:30:01-5:00</td>
 </tr>
 <tr class="even">
 <td align="left">Hackers Used New Weapons to Disrupt Major Websites Across U.S.</td>
 <td align="left">Users of Twitter, Netflix and other sites reported failures after a company managing crucial parts of the internet infrastructure said it was under attack.</td>
 <td align="left">By NICOLE PERLROTH</td>
 <td align="left"><a href="http://www.nytimes.com/2016/10/22/business/internet-problems-attack.html" class="uri">http://www.nytimes.com/2016/10/22/business/internet-problems-attack.html</a></td>
-<td align="left">2016-10-21T09:30:29-5:00</td>
+<td align="left">2016-10-21</td>
+<td align="left">09:30:29-5:00</td>
 </tr>
 <tr class="odd">
-<td align="left">Daily Report: Microsoft, Ahead in the Cloud</td>
-<td align="left">Investors liked what they saw in the software giant’s earnings. Wait until they see how many value-building charges the company can add to computing.</td>
-<td align="left">By QUENTIN HARDY</td>
-<td align="left"><a href="http://www.nytimes.com/2016/10/22/technology/daily-report-microsoft-ahead-in-the-cloud.html" class="uri">http://www.nytimes.com/2016/10/22/technology/daily-report-microsoft-ahead-in-the-cloud.html</a></td>
-<td align="left">2016-10-21T11:00:32-5:00</td>
-</tr>
-<tr class="even">
 <td align="left">Keeping the Political Wool From Being Pulled Over Your Eyes</td>
 <td align="left">These apps help you check facts, understand statistics and spot false arguments in this contentious election season.</td>
 <td align="left">By KIT EATON</td>
 <td align="left"><a href="http://www.nytimes.com/2016/10/20/technology/personaltech/keeping-the-political-wool-from-being-pulled-over-your-eyes.html" class="uri">http://www.nytimes.com/2016/10/20/technology/personaltech/keeping-the-political-wool-from-being-pulled-over-your-eyes.html</a></td>
-<td align="left">2016-10-19T11:14:59-5:00</td>
+<td align="left">2016-10-19</td>
+<td align="left">11:14:59-5:00</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">Do You Have a Samsung Galaxy Note 7? Here’s What to Do</td>
 <td align="left">Power down the device immediately. Then contact the wireless carrier or store where it was bought for details about a refund or exchange.</td>
 <td align="left">By J. D. BIERSDORFER</td>
 <td align="left"><a href="http://www.nytimes.com/2016/10/12/technology/personaltech/do-you-have-a-samsung-galaxy-note-7-heres-what-to-do.html" class="uri">http://www.nytimes.com/2016/10/12/technology/personaltech/do-you-have-a-samsung-galaxy-note-7-heres-what-to-do.html</a></td>
-<td align="left">2016-10-12T00:00:00-5:00</td>
+<td align="left">2016-10-12</td>
+<td align="left">00:00:00-5:00</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">How to Bid Adieu to Yahoo</td>
 <td align="left">When you decide it’s time to close your account and move on to another mail service, make sure you get all the files you need before you go.</td>
 <td align="left">By J. D. BIERSDORFER</td>
 <td align="left"><a href="http://www.nytimes.com/2016/10/13/technology/personaltech/how-to-bid-adieu-to-yahoo.html" class="uri">http://www.nytimes.com/2016/10/13/technology/personaltech/how-to-bid-adieu-to-yahoo.html</a></td>
-<td align="left">2016-10-12T12:40:40-5:00</td>
+<td align="left">2016-10-12</td>
+<td align="left">12:40:40-5:00</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">After You Strengthen Your Passwords, Here’s How to Store Them</td>
 <td align="left">Strong passwords are vital to digital security because they’re tougher to hack — but they’re also harder to remember. These secure apps can help.</td>
 <td align="left">By KIT EATON</td>
 <td align="left"><a href="http://www.nytimes.com/2016/10/06/technology/personaltech/after-you-strengthen-your-passwords-heres-how-to-store-them.html" class="uri">http://www.nytimes.com/2016/10/06/technology/personaltech/after-you-strengthen-your-passwords-heres-how-to-store-them.html</a></td>
-<td align="left">2016-10-06T00:00:00-5:00</td>
+<td align="left">2016-10-06</td>
+<td align="left">00:00:00-5:00</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">Donate Your Computer’s Spare Time to Science</td>
 <td align="left">With the right software, you can give your computer’s spare processing power to a research project (and maybe make the world a better place).</td>
 <td align="left">By J. D. BIERSDORFER</td>
 <td align="left"><a href="http://www.nytimes.com/2016/10/20/technology/personaltech/donate-your-computers-spare-time-to-science.html" class="uri">http://www.nytimes.com/2016/10/20/technology/personaltech/donate-your-computers-spare-time-to-science.html</a></td>
-<td align="left">2016-10-19T12:26:56-5:00</td>
+<td align="left">2016-10-19</td>
+<td align="left">12:26:56-5:00</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">When You Outgrow Your iCloud Storage</td>
 <td align="left">Every iCloud user gets five free gigabytes of server space from Apple, but when space gets tight, you either have to prune or pay.</td>
 <td align="left">By J. D. BIERSDORFER</td>
 <td align="left"><a href="http://www.nytimes.com/2016/10/19/technology/personaltech/when-you-outgrow-your-icloud-storage.html" class="uri">http://www.nytimes.com/2016/10/19/technology/personaltech/when-you-outgrow-your-icloud-storage.html</a></td>
-<td align="left">2016-10-18T12:04:31-5:00</td>
+<td align="left">2016-10-18</td>
+<td align="left">12:04:31-5:00</td>
 </tr>
 </tbody>
 </table>
