@@ -1,5 +1,5 @@
 ---
-title: "DATA 607: W10 Presentation - NLP, TFIDF Example"
+title: "DATA 607: W10 Presentation - Jazz Musicians: TF-IDF Example"
 author: "Walt Wells, Fall 2016"
 output:
   html_document:
@@ -58,7 +58,7 @@ if (!exists('cMingus')) cMingus <- gettext("https://en.wikipedia.org/wiki/Charle
 
 ```{r, cache=TRUE}
 # setup vector for later
-list <- c("cParker", "dEllington", "jColtrane", "mDavis", 
+list <- c("Charlie_Parker", "dEllington", "jColtrane", "mDavis", 
           "dGillespie", "lArmstrong", "cHawkins", "cMingus", "query")
 
 # we will include the query in our corpus, so when we later look use cosine similarity we it will be included. 
