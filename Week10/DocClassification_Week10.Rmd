@@ -1,0 +1,133 @@
+---
+title: "DATA 607: Document Classification; Week 10"
+author: "Walt Wells, Fall 2016"
+output:
+  html_document:
+    theme: lumen
+    toc: yes
+  pdf_document:
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Abstract
+
+# Environment Prep
+```{r, warning=FALSE, message=FALSE}
+if (!require('tm')) install.packages('tm')
+if (!require('caret')) install.packages('caret')
+if (!require('gmodels')) install.packages('gmodels')
+if (!require('SnowballC')) install.packages('SnowballC')
+if (!require('lsa')) install.packages('lsa')
+```
+
+# Data Acquisition and Prep
+
+## Data Source
+
+We are will use the [Apache SpamAssassin public email corpus](https://spamassassin.apache.org/publiccorpus/).  More information on the dataset can be found at: [https://spamassassin.apache.org/publiccorpus/readme.html](https://spamassassin.apache.org/publiccorpus/readme.html)
+
+## Data Acquisition
+
+Compressed files from the public corpus have been downloaded and uncompressed in an "SData" directory. 
+
+```{r}
+
+# Setup spamcorp
+spamcorp <- c(Corpus(DirSource("SData/spam"), readerControl = list(language="lat")), 
+              Corpus(DirSource("SData/spam_2"), readerControl = list(language="lat")))
+
+# setup hamcorp
+hamcorp <- c(Corpus(DirSource("SData/easy_ham"), readerControl = list(language="lat")),
+             Corpus(DirSource("SData/easy_ham_2"), readerControl = list(language="lat")),
+             Corpus(DirSource("SData/hard_ham"), readerControl = list(language="lat")))
+
+# add class labels
+metalabel <- function(corp, label) {
+    for (i in 1:length(corp)) {
+        meta(corp[[i]], "class") <- label
+    }
+}
+
+metalabel(spamcorp, "spam")
+metalabel(hamcorp, "ham")
+#meta(spamcorp, "class") <- "spam"
+#meta(hamcorp, "class") <- "ham"
+
+# combine data
+allmail <- c(spamcorp, hamcorp)
+```
+
+### All Sample Spam / Ham Ratio
+
+```{r}
+cl <- unlist(meta(allmail, "class")[,1])
+spamtotal <- length(which(cl == "spam"))
+hamtotal <- length(which(cl == "ham"))
+sratio <- round(spamtotal / (spamtotal + hamtotal), 4)
+table(cl)
+```
+
+We calculate the ratio of spam to ham in the entire corpus to be `r sratio`.
+
+## Data Prep and Clean
+
+```{r}
+
+CleanCorp <- tm_map(allmail, stripWhitespace)
+#CleanCorp <- tm_map(CleanCorp, removePunctuation)
+#CleanCorp <- tm_map(CleanCorp, content_transformer(tolower))
+#CleanCorp <- tm_map(CleanCorp, removeWords, stopwords("english")) 
+#CleanCorp <- tm_map(CleanCorp, stemDocument, language="en")
+
+## review kernlab spam dataset ?spam
+# engineer features to proceed?
+```
+
+## Term Document Matrix
+
+```{r}
+dtm <- DocumentTermMatrix(CleanCorp)
+
+# only look at terms that appear in at least 10 of the emails
+dtm2 <- removeSparseTerms(dtm, 1-(10/length(allmail)))
+tdm2$dimnames$Term
+#inspect(tdm2)
+#tdm <- TermDocumentMatrix(allmail, control=list(minDocFreq=10))
+#tdm_df <- as.data.frame(inspect(tdm))
+```
+
+# Classification
+
+## Data Split
+
+```{r}
+# k-fold Cross Validation
+data("iris")
+train_control <- trainControl(method="repeatedcv", number=10, repeats=3)
+# train the model
+model <- train(Species~., data=iris, trControl=train_control, method="nb")
+# summarize results
+print(model)
+
+
+# data split
+
+# define an 80%/20% train/test split of the dataset
+split=0.80
+trainIndex <- createDataPartition(iris$Species, p=split, list=FALSE)
+data_train <- iris[ trainIndex,]
+data_test <- iris[-trainIndex,]
+# train a naive bayes model
+model2 <- NaiveBayes(Species~., data=data_train)
+# make predictions
+x_test <- data_test[,1:4]
+y_test <- data_test[,5]
+predictions <- predict(model2, x_test)
+# summarize results
+confusionMatrix(predictions$class, y_test)
+
+```

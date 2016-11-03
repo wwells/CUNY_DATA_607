@@ -1,0 +1,186 @@
+---
+title: "DATA 607: PR Data Example from Automated Data Collection in R; Week 10"
+author: "Walt Wells, Fall 2016"
+output:
+  html_document:
+    theme: lumen
+    toc: yes
+  pdf_document:
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Environment Prep
+```{r, warning=FALSE, message=FALSE}
+if (!require('tm')) install.packages('tm')
+if (!require('RCurl')) install.packages('RCurl')
+if (!require('XML')) install.packages('XML')
+if (!require('stringr')) install.packages('stringr')
+if (!require('SnowballC')) install.packages('SnowballC')
+if (!require('RTextTools')) install.packages('RTextTools')
+```
+
+# Download
+```{r eval=FALSE}
+all_links <- character()
+new_results <- 'government/announcements?keywords=&announcement_type_option=press-releases&topics[]=all&departments[]=all&world_locations[]=all&from_date=&to_date=01%2F07%2F2010'
+#signatures <- system.file("CurlSSL", cainfo = "cacert.pem", package = "RCurl")
+
+#collect links
+while(length(new_results) > 0 ){
+    new_results <- str_c("https://www.gov.uk/", new_results)
+    results <- getURL(new_results, ssl.verifypeer=FALSE)
+    results_tree <- htmlParse(results)
+    all_links <- c(all_links, xpathSApply(results_tree,
+                                          "//li[@id]//a",
+                                          xmlGetAttr, "href"))
+    new_results <- xpathSApply(results_tree,
+                               "//nav[@id='show-more-documents']
+                               //li[@class='next']//a", 
+                               xmlGetAttr, "href")
+}
+
+
+for (i in 1:length(all_links)) {
+    url <- str_c("https://www.gov.uk", all_links[i])
+    tmp <- getURL(url, ssl.verifypeer=FALSE)
+    write(tmp, str_c("Press_Releases/", i, ".html"))
+}
+```
+
+
+# Reading
+
+```{r}
+#single file review
+tmp <- readLines("Press_Releases/1.html")
+tmp <- str_c(tmp, collapse = "")
+tmp <- htmlParse(tmp)
+release <- xpathSApply(tmp, "//div[@class='block-4']", xmlValue)
+organisation <- xpathSApply(tmp, "//dd[@class='from']//a[@class='organisation-link']", xmlValue)
+publication <- xpathSApply(tmp, "//dl[@class='primary-metadata']//time[@class='date']", xmlValue)
+
+release_corpus <- Corpus(VectorSource(release))
+#add extracted metadata
+
+meta(release_corpus[[1]], "organisation") <- organisation[1]
+meta(release_corpus[[1]], "publication") <- publication
+meta(release_corpus[[1]])
+```
+
+# Build Corpus of all
+
+```{r}
+n <- 1
+for (i in 2:length(list.files("Press_Releases/"))) {
+    tmp <- readLines(str_c("Press_Releases/", i, ".html"))
+    tmp <- str_c(tmp, collapse = "")
+    tmp <- htmlParse(tmp)
+    release <- xpathSApply(tmp, "//div[@class='block-4']", xmlValue)
+    organisation <- xpathSApply(tmp, "//dd[@class='from']//a[@class='organisation-link']", xmlValue)
+    publication <- xpathSApply(tmp, "//dl[@class='primary-metadata']//time[@class='date']", xmlValue)
+    if (length(release)!=0) {
+        n <- n + 1
+        tmp_corpus <- Corpus(VectorSource(release))
+        release_corpus <- c(release_corpus, tmp_corpus)
+        meta(release_corpus[[n]], "organisation") <- organisation[1]
+        meta(release_corpus[[n]], "publication") <- publication
+    }
+}
+
+# tabular metadata
+organisation <- unlist(meta(release_corpus, "organisation"))
+publication <- unlist(meta(release_corpus, "publication"))
+meta_data <- data.frame(organisation, publication)
+
+```
+
+
+# Clean
+
+```{r}
+#filter out orgs with < 20 releases
+release_corpus <- tm_filter(release_corpus, FUN = function(x)
+    meta(x)[["organisation"]] == "Department for Business, Innovation & Skills" |   
+    meta(x)[["organisation"]] == "Cabinet Office" |
+    meta(x)[["organisation"]] == "Department for Communities and Local Government" |
+    meta(x)[["organisation"]] == "Department for Environment, Food & Rural Affairs" |
+    meta(x)[["organisation"]] == "Foreign & Commonwealth Office" |
+    meta(x)[["organisation"]] == "Ministry of Defence" |
+    meta(x)[["organisation"]] == "Prime Minister's Office, 10 Downing Street" |
+    meta(x)[["organisation"]] == "Wales Office")
+
+# clean
+release_corpus <- tm_map(release_corpus, removeNumbers)
+release_corpus <- tm_map(release_corpus, removePunctuation)
+release_corpus <- tm_map(release_corpus, removeWords, words =
+stopwords("en"))
+release_corpus <- tm_map(release_corpus, content_transformer(tolower))
+release_corpus <- tm_map(release_corpus, stemDocument)
+
+
+```
+
+# TDM
+
+```{r}
+tdm <- TermDocumentMatrix(release_corpus)
+tdm <- removeSparseTerms(tdm, 1-(10/length(release_corpus)))
+dtm <- DocumentTermMatrix(release_corpus)
+ddm <- removeSparseTerms(dtm, 1-(10/length(release_corpus)))
+```
+
+# Make Container
+
+```{r}
+### how are labels correct when removing sparse terms changes list?
+org_labels <- unlist(meta(release_corpus, "organisation"))
+N <- length(org_labels)
+
+container <- create_container(
+    dtm,
+    labels=org_labels,
+    trainSize=1:400,
+    testSize=400:N,
+    virgin=FALSE
+)
+```
+
+# Train Models
+
+```{r}
+svm_model <- train_model(container, "SVM")
+tree_model <- train_model(container, "TREE")
+maxent_model <- train_model(container, "MAXENT")
+```
+
+# Test Models
+
+```{r}
+svm_out <- classify_model(container, svm_model)
+tree_out <- classify_model(container, tree_model)
+maxent_out <- classify_model(container, maxent_model)
+
+labels_out <- data.frame(
+    correct_label = org_labels[400:N],
+    svm = as.character(svm_out[,1]),
+    tree = as.character(tree_out[,1]),
+    maxent = as.character(maxent_out[,1]),
+    stringsAsFactors = F)
+
+## SVM performance
+table(labels_out[,1] == labels_out[,2])
+prop.table(table(labels_out[,1] == labels_out[,2]))
+
+## Random forest performance
+table(labels_out[,1] == labels_out[,3])
+prop.table(table(labels_out[,1] == labels_out[,3]))
+
+## Maximum entropy performance
+table(labels_out[,1] == labels_out[,4])
+prop.table(table(labels_out[,1] == labels_out[,4]))
+```
+

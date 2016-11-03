@@ -78,7 +78,7 @@ CleanCorp <- tm_map(corp, removeNumbers)
 CleanCorp <- tm_map(CleanCorp, removePunctuation)
 CleanCorp <- tm_map(CleanCorp, content_transformer(tolower))
 CleanCorp <- tm_map(CleanCorp, removeWords, stopwords("english")) 
-#CleanCorp <- tm_map(CleanCorp, stemDocument, language="en")
+CleanCorp <- tm_map(CleanCorp, stemDocument, language="en")
 ```
 
 ## Word Cloud
@@ -107,7 +107,7 @@ tdm$dimnames$Docs <- list
 Our goal is to search for "famous jazz saxophonist born in kansas who played bebop and latin".   First we'll look only at TF.  Then we'll use the TermDocumentMatrix weighting function to calculate and display TF-IDF. 
 
 ```{r}
-search <- c("famous","jazz", "saxophonist", "born", "kansas", "play", "bebop", "latin")
+search <- c("famous","jazz", "saxophonist", "born", "kansa", "play", "bebop", "latin")
 r1 <- inspect(tdm[search[search %in% Terms(tdm)], dimnames(tdm)$Docs])
 
 tfidf <- TermDocumentMatrix(CleanCorp, control = list(weighting = function(x) weightTfIdf(x, normalize = FALSE)))
