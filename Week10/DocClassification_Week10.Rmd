@@ -4,9 +4,10 @@ author: "Walt Wells, Fall 2016"
 output:
   html_document:
     theme: lumen
-    toc: yes
-  pdf_document:
-    toc: yes
+    toc: true
+    toc_float: 
+        collapsed: false
+    code_folding: show
 ---
 
 ```{r setup, include=FALSE}
@@ -15,119 +16,223 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Abstract
 
+For this project we will ingest and prepare a spam/ham dataset then build and evaluate classifer models that, given a new email, will determine whether it is spam or ham. 
+
 # Environment Prep
 ```{r, warning=FALSE, message=FALSE}
+if (!require('stringr')) install.packages('stringr')
 if (!require('tm')) install.packages('tm')
-if (!require('caret')) install.packages('caret')
-if (!require('gmodels')) install.packages('gmodels')
 if (!require('SnowballC')) install.packages('SnowballC')
-if (!require('lsa')) install.packages('lsa')
+if (!require('RTextTools')) install.packages('RTextTools')
+if (!require('caret')) install.packages('caret')
 ```
 
-# Data Acquisition and Prep
+# Data Source
 
-## Data Source
+*  We are will use the [Apache SpamAssassin public email corpus](https://spamassassin.apache.org/publiccorpus/).  
+*  More information on the dataset can be found at: [https://spamassassin.apache.org/publiccorpus/readme.html](https://spamassassin.apache.org/publiccorpus/readme.html)
+*  Note - we manually removed 'cmd' files that were found in some of these directories.  
 
-We are will use the [Apache SpamAssassin public email corpus](https://spamassassin.apache.org/publiccorpus/).  More information on the dataset can be found at: [https://spamassassin.apache.org/publiccorpus/readme.html](https://spamassassin.apache.org/publiccorpus/readme.html)
+# Data Ingestion
 
-## Data Acquisition
+Compressed files from the public corpus have been downloaded and uncompressed in an "SData" directory.  We will use the all the most current hard and easy spam/ham files to train and test our models. 
 
-Compressed files from the public corpus have been downloaded and uncompressed in an "SData" directory. 
+## Review: Clean 1
 
 ```{r}
+tmp <- readLines("SData/spam/0001.bfc8d64d12b325ff385cca8d07b84288")
+tmp <- str_c(tmp, collapse = "")
+tmp <- str_replace_all(tmp, pattern="<.*?>", replacement = " ")
+tmp <- str_replace_all(tmp, pattern="\\=", replacement = "")
+tmp
 
-# Setup spamcorp
-spamcorp <- c(Corpus(DirSource("SData/spam"), readerControl = list(language="lat")), 
-              Corpus(DirSource("SData/spam_2"), readerControl = list(language="lat")))
+tmpcorp <- Corpus(VectorSource(tmp))
+meta(tmpcorp, "class") <- "spam"
 
-# setup hamcorp
-hamcorp <- c(Corpus(DirSource("SData/easy_ham"), readerControl = list(language="lat")),
-             Corpus(DirSource("SData/easy_ham_2"), readerControl = list(language="lat")),
-             Corpus(DirSource("SData/hard_ham"), readerControl = list(language="lat")))
+# recall meta
+meta(tmpcorp, "class")
+```
 
-# add class labels
-metalabel <- function(corp, label) {
-    for (i in 1:length(corp)) {
-        meta(corp[[i]], "class") <- label
+## Function:  Build Corpus
+
+```{r, cache=TRUE}
+
+buildcorpus <- function(dir, class) {
+    filelist <- list.files(dir)
+    for (i in 1:length(filelist)){
+        path <- paste0(dir, filelist[i])
+        tmp <- readLines(path)
+        tmp <- str_c(tmp, collapse = "")
+        tmp <- str_replace_all(tmp, pattern="<.*?>", replacement = " ")
+        tmp <- str_replace_all(tmp, pattern="\\=", replacement = "")
+        
+        if (!exists("corp")) {
+            corp <- Corpus(VectorSource(tmp))
+        } else {
+            corp <- c(corp, Corpus(VectorSource(tmp)))
+        }
+        meta(corp[[i]], "class") <- class
     }
+    corp
 }
 
-metalabel(spamcorp, "spam")
-metalabel(hamcorp, "ham")
-#meta(spamcorp, "class") <- "spam"
-#meta(hamcorp, "class") <- "ham"
-
-# combine data
-allmail <- c(spamcorp, hamcorp)
+allcorp <- c(buildcorpus("SData/spam/", "spam"),
+             buildcorpus("SData/spam_2/", "spam"),
+             buildcorpus("SData/easy_ham/", "ham"),
+             buildcorpus("SData/easy_ham_2/", "ham"),
+             buildcorpus("SData/hard_ham/", "ham"))
 ```
 
-### All Sample Spam / Ham Ratio
+
+# Corpus Clean
+
+```{r, cache=TRUE}
+# clean and prep for tf
+cleancorp <- tm_map(allcorp, removeWords, stopwords("english")) 
+cleancorp <- tm_map(cleancorp, stripWhitespace)
+cleancorp <- tm_map(cleancorp, stemDocument, language="en")
+```
+
+## Review: Clean 1 + Clean 2
+
+```{r, cache=TRUE}
+cleancorp[[1]][[1]]
+
+# randomize for training / testing
+cleancorp <- sample(cleancorp)
+```
+
+## Review: Spam / Ham 
 
 ```{r}
-cl <- unlist(meta(allmail, "class")[,1])
-spamtotal <- length(which(cl == "spam"))
-hamtotal <- length(which(cl == "ham"))
+meta_list <- factor(unlist(meta(cleancorp, "class")))
+table(meta_list)
+spamtotal <- length(which(meta_list == "spam")) 
+hamtotal <- length(which(meta_list == "ham")) 
 sratio <- round(spamtotal / (spamtotal + hamtotal), 4)
-table(cl)
 ```
 
 We calculate the ratio of spam to ham in the entire corpus to be `r sratio`.
 
-## Data Prep and Clean
+# Term Document Matrix
 
-```{r}
+```{r, cache=TRUE}
+dtm <- DocumentTermMatrix(cleancorp)
+# only look at terms that appear in at least 20 of the emails
+dtm <- removeSparseTerms(dtm, 1-(20/length(cleancorp)))
 
-CleanCorp <- tm_map(allmail, stripWhitespace)
-#CleanCorp <- tm_map(CleanCorp, removePunctuation)
-#CleanCorp <- tm_map(CleanCorp, content_transformer(tolower))
-#CleanCorp <- tm_map(CleanCorp, removeWords, stopwords("english")) 
-#CleanCorp <- tm_map(CleanCorp, stemDocument, language="en")
-
-## review kernlab spam dataset ?spam
-# engineer features to proceed?
+# preview sparsity
+dtm
 ```
 
-## Term Document Matrix
+# Modeling w/ RTextTools
 
-```{r}
-dtm <- DocumentTermMatrix(CleanCorp)
+For this classification task, we will train, test and compare 4 models built into the RTextTools package - Support Vector Machines, Tree, Lasso and Elastic-Net Generalized Linear Model, and Maximum Entropy.  
 
-# only look at terms that appear in at least 10 of the emails
-dtm2 <- removeSparseTerms(dtm, 1-(10/length(allmail)))
-tdm2$dimnames$Term
-#inspect(tdm2)
-#tdm <- TermDocumentMatrix(allmail, control=list(minDocFreq=10))
-#tdm_df <- as.data.frame(inspect(tdm))
+Because of our approach to data organization, it is not trivial to implment the Naive Bayes method, which is not offered in the RTextTools package.
+
+## Make Container
+
+```{r, cache=TRUE}
+# split data for train/test
+N <- length(meta_list)
+trainpartition <- round(.75 * N)
+
+# make container for RTextTools
+container <- create_container(
+    dtm,
+    labels=meta_list,
+    trainSize=1:trainpartition,
+    testSize=trainpartition:N,
+    virgin=FALSE
+)
 ```
 
-# Classification
+## Train Models
 
-## Data Split
+```{r, cache=TRUE}
+svm_model <- train_model(container, "SVM")
+tree_model <- train_model(container, "TREE")
+glm_model <- train_model(container, "GLMNET")
+maxent_model <- train_model(container, "MAXENT")
+```
+
+## Test Models
+
+```{r, cache=TRUE}
+svm_out <- classify_model(container, svm_model)
+tree_out <- classify_model(container, tree_model)
+glm_out <- classify_model(container, glm_model)
+maxent_out <- classify_model(container, maxent_model)
+```
+
+# Evaluate Performance
+
+```{r, warning=FALSE, message=FALSE}
+labels_out <- data.frame(
+    correct_label = meta_list[trainpartition:N],
+    svm = as.character(svm_out[,1]),
+    tree = as.character(tree_out[,1]),
+    glm = as.character(glm_out[,1]),
+    maxent = as.character(maxent_out[,1]),
+    stringsAsFactors = F)
+
+#func to call confusionMatrix 
+makematrix <- function(col) {
+    confusionMatrix(table(labels_out[[col]], labels_out$correct_label), positive="ham")
+}
+
+# create all 
+svmconf <- makematrix('svm')
+treeconf <- makematrix('tree')
+glmconf <- makematrix('glm')
+maxentconf <- makematrix('maxent')
+```
+
+## Plot:  Confusion Matrix
 
 ```{r}
-# k-fold Cross Validation
-data("iris")
-train_control <- trainControl(method="repeatedcv", number=10, repeats=3)
-# train the model
-model <- train(Species~., data=iris, trControl=train_control, method="nb")
-# summarize results
-print(model)
-
-
-# data split
-
-# define an 80%/20% train/test split of the dataset
-split=0.80
-trainIndex <- createDataPartition(iris$Species, p=split, list=FALSE)
-data_train <- iris[ trainIndex,]
-data_test <- iris[-trainIndex,]
-# train a naive bayes model
-model2 <- NaiveBayes(Species~., data=data_train)
-# make predictions
-x_test <- data_test[,1:4]
-y_test <- data_test[,5]
-predictions <- predict(model2, x_test)
-# summarize results
-confusionMatrix(predictions$class, y_test)
-
+par(mfrow=c(2,2))
+fourfoldplot(svmconf$table, color = c("#B22222", "#2E8B57"), main="SVM")
+fourfoldplot(treeconf$table, color = c("#B22222", "#2E8B57"), main="Tree")
+fourfoldplot(glmconf$table, color = c("#B22222", "#2E8B57"), main="GLM")
+fourfoldplot(maxentconf$table, color = c("#B22222", "#2E8B57"), main="MaxEnt")
 ```
+
+## Comparison Table:  F1 Score
+
+```{r}
+#setup df
+eval <- data.frame(treeconf$byClass, 
+                   svmconf$byClass,
+                   glmconf$byClass,
+                   maxentconf$byClass)
+
+eval <- data.frame(t(eval))
+
+#calc FScore
+precision <- eval$Pos.Pred.Value
+recall <- eval$Sensitivity
+eval$Fscore <- 2 * ((precision * recall) / (precision + recall))  
+
+# manipulate results DF
+eval <- eval[,c(1:3, 9)]
+row.names(eval) <- c("Tree", "SVM", "GLM", "MaxEnt")
+eval <- eval[order(eval$Fscore, decreasing=TRUE),]
+
+knitr::kable(eval)
+```
+
+# Conclusion
+
+In summary, we ingested and cleaned our spam/ham data, then trained 4 different models using 75% of the data and tested on the withheld 25%.  Our results were uniformly excellent, and we compared the models by using a confusion matrix and calculating the F1 score for binary classification using the precision and recall metrics.  Note that in the confusionMatrix function in caret, these values precision = positive predictive value and recall = sensitivity. 
+
+As noted, all of the models performed very well.   The Maximum Entropy and Support Vector Machines were the top performers with Fscores > 0.99.  Combining models into an ensemble has the potential to improve performance even further. 
+
+The RTextTools package provides excellent one-stop shopping for document preparation and modelling, however the algorithm choices are limited and a bit too 'black box' for a noob learner like me.   I look forward to learning more about the inner workings of individual modeling algorithms in future projects.
+
+# References
+
+* [Automated Data Collection with R, Chapter 10 - Munzert, Rubba, Meisner, Nyhuis](http://www.r-datacollection.com/)
+* [RTextTools: A Supervised Learning Package for Text Classification - Jurka, Collingwood, Boydstun, Gorssman, Atteveldt](https://journal.r-project.org/archive/2013-1/collingwood-jurka-boydstun-etal.pdf)
+* [http://stackoverflow.com/questions/23891140/r-how-to-visualize-confusion-matrix-using-the-caret-package](http://stackoverflow.com/questions/23891140/r-how-to-visualize-confusion-matrix-using-the-caret-package)

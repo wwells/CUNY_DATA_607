@@ -8,3 +8,4 @@ configAPI.R
 CUNY-DATA-607-2-Group-Project
 *_cache/
 *_files/
+*.RData
