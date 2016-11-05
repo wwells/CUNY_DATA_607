@@ -4,6 +4,8 @@ author: "Walt Wells, Fall 2016"
 output:
   html_document:
     theme: lumen
+    highlight: zenburn
+    css: custom.css
     toc: true
     toc_float: 
         collapsed: false

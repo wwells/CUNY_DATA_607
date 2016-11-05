@@ -1,0 +1,7 @@
+
+pre:nth-child(2n){
+  font-weight: 500;
+  color: black;
+}
+
+
