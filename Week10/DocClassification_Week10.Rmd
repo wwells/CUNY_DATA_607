@@ -7,8 +7,7 @@ output:
     highlight: zenburn
     css: custom.css
     toc: true
-    toc_float: 
-        collapsed: false
+    toc_float: true
     code_folding: show
 ---
 
