@@ -1,0 +1,29 @@
+---
+title: 'DATA 607:  NoSQL Migration, Project 4'
+author: "Walt Wells, Fall 2016"
+output:
+  html_document:
+    theme: lumen
+    highlight: zenburn
+    css: ../custom.css
+    toc: true
+    toc_float: true
+    code_folding: show
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Environment Prep
+
+```{r, warning=FALSE, message=FALSE}
+if (!require('dplyr')) install.packages('dplyr')
+if (!require('tidyr')) install.packages('tidyr')
+if (!require('DT')) install.packages('DT')
+if (!require('ggplot2')) install.packages('ggplot2')
+if (!require('xlsx')) install.packages('xlsx')
+if (!require('reshape2')) install.packages('reshape2')
+```
+
+# Dataset 1: Census Data Population Estimates

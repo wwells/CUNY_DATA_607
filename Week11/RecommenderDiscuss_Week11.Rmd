@@ -1,0 +1,67 @@
+---
+title: "DATA 607: Recommender Systems Discussion; Week 11"
+author: "Walt Wells, Fall 2016"
+output:
+  html_document:
+    theme: lumen
+    highlight: zenburn
+    css: ../custom.css
+    toc: true
+    toc_float: true
+    code_folding: show
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Assignment
+
+Analyze an existing recommender system that you find interesting. 
+
+# Abstract
+
+We'll look at StichFix.   StichFix utilizes compliments an algorithm driven recommender system with human stylist hand selection.
+
+"Stitch Fix is the first fashion retailer to blend expert styling, proprietary technology and unique product to deliver a shopping experience that is truly personalized for you. Simply fill out the Stitch Fix Style Profile and our personal stylists will handpick a selection of five clothing items and accessories unique to your taste, budget and lifestyle. You can buy what you like and return the rest (shipping is free both ways)."
+
+Source:  [https://support.stitchfix.com/hc/en-us/articles/203317264-How-Stitch-Fix-works](https://support.stitchfix.com/hc/en-us/articles/203317264-How-Stitch-Fix-works)
+
+# Scenario Design
+
+* Who are your target users?  
+    * Busy, career driven individuals with available income who either don't want to shop, don't have time to shop, or live in a region without access to fashion choices of their liking.  
+* What are their key goals? 
+    * The users are looking for a fast and easy transaction that will improve their quality of life or career through fashion. 
+* How can you help them accomplish those goals? 
+    * StichFix helps users accomplish their goals through a curated recommender system that empowers user to manage their wardrobe with a few clicks. 
+
+# Reverse Engineer
+
+Some good content has been published by StichFix or can be gleaned in interviews given to StichFix Data Scientists and Engineers: 
+
+__How does human-machine collaboration work at Stitch Fix?__
+
+"The machine learning happens first, and we combine all sorts of algorithms for different sub tasks, be they neural nets, collaborative filtering, mixed effects models, naïve Bayes, etc. to do a first pass at recommending styles for individual customers. Machines are far more efficient than humans and we leverage them for the rote calculations in our process. We leave the other types of activities - like synthesizing ambient information, improvising, fostering a relationship with the customer, applying empathy - to humans. The final step is logistics to manage delivery. It’s a division of labor modeled after Daniel Kahneman’s two systems of thinking in Thinking, Fast and Slow. The machines take the calculations and probabilities; the humans take the intuition. But there are overlapping tasks they share."  
+
+From 5/25/16 [Eric Colson interview w/ Fast Forward Labs](http://blog.fastforwardlabs.com/post/144904410058/human-machine-algorithms-interview-with-eric)
+
+
+See also:
+
+*  [Using Human and Machine Processing in Recommendation Systems](https://www.aaai.org/ocs/index.php/HCOMP/HCOMP13/paper/viewFile/7494/7429)
+*  [Machine and Expert-Human Resources: A Synthesis of Art and Science for Recommendations](http://multithreaded.stitchfix.com/blog/2014/07/21/machine-and-expert-human-resources/)
+*  In general, the [StichFix tech blog](http://multithreaded.stitchfix.com/blog/), which is an excellent recruitment tool. 
+
+## Roughly?
+
+*  Customers submit or select images of fashions they like
+*  Machines vectorize images and compare to inventory using convulutional neural nets
+*  Pass to StichFix stylists for a review of predicted selection. 
+    * "Take something like a leopard print dress. Machines are very pedantic: they can distinguish leopard print from cheetah print, but don’t have the social sense to know that a woman who likes leopard print would very likely also like cheetah print."
+*  Since there may be a lag in response from customer feedback to stylist, StichFix has also built a parallel "labs" capable of giving the stylist simulated feedback.
+*  Customer receives selections, responds - if approved, clothing processed and sent directly to the customer for hand review.   
+
+# Next Steps
+
+Next StichFix is working on data-driven clothing design and augmenting and improving their various algorithms.  
