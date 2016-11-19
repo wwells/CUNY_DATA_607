@@ -1,0 +1,110 @@
+---
+title: 'DATA 607:  Final Project'
+author: "Walt Wells, Fall 2016"
+output:
+  html_document:
+    theme: lumen
+    highlight: zenburn
+    css: ../custom.css
+    toc: true
+    toc_float: true
+    code_folding: show
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Abstract
+
+I would like to use the final project as an opportunity to learn more about working with Twitter data and conducting a sentiment analysis.   
+
+Because of the unique temporal nature of Twitter, I propose to create a dataset culled from tweets of a popular live event with a curated hastag (that falls between now and the project due date):   The NBC airing of the live Hairspray musical on December 7th.  I will work to scrape this dataset during and after the live airing to create a dataset that can be mined to look at:
+
+* Sentiment
+* Regional Timezone response (where location data is available)
+* If possible:  Sentiment corresponding to specific moments or scenes in the show. 
+* If possible:  Review multiple days (Live, D2, D3) and look at useage patterns, dropoff.  
+
+This scraped data could then be used in correlation with a positive/negative word lexicon to conduct a sentiment analysis. 
+
+I expect to encounter challenges related to:
+
+* How to weigh / measure RTs in a sentiment analysis
+* How to predict or remove spam bot RTs.  
+* If scraping multiple times, how to handle differences or duplicates in data.  
+* Potential limitations in availability of scraped data. 
+* Potential for misinterpreted hastags (eg - someone tweeting about #hairspray that is actually talking about their aquanet sprayed beehive)
+
+# Environment Prep
+
+```{r, warning=FALSE, message=FALSE}
+if (!require('twitteR')) install.packages ('twitteR')
+if (!require('ROAuth')) install.packages ('ROAuth')
+if (!require('httr')) install.packages ('httr')
+if (!require('plyr')) install.packages ('plyr')
+if (!require('stringr')) install.packages ('stringr')
+```
+
+# Data Acquisition
+
+## Twitter API Credentials
+
+In order to run the scrape function and get data, the user will need to create an application in the Twitter API and populate with the fields below.  Ours our stored in the file sourced below.  
+
+* api_key
+* api_secret
+* access_token
+* access_token_secret
+
+```{r}
+source('FPCredentials.R')
+```
+
+## Set Connections
+
+```{r}
+options(httr_oauth_cache=TRUE)
+setup_twitter_oauth(api_key, api_secret, access_token, access_token_secret)
+```
+
+## Scrape and Save
+
+```{r, eval=FALSE}
+#version to just look for date range
+data <- searchTwitter("#SC16", n=100000,since='2016-11-13', until='2016-11-18',lang="en", resultType="recent")
+
+#setdf
+df <- do.call('rbind', lapply(data, as.data.frame))
+
+#write to csv for later use
+write.csv(df, file="scrapedf.csv")
+```
+
+### Check Session Limits
+
+```{r}
+rate.limit <- getCurRateLimitInfo()
+# print out all metrics that have been changed
+rate.limit[rate.limit$limit != rate.limit$remaining,]
+```
+
+## Start preparing the data
+
+```{r}
+if (!exists('df')) (df <- read.csv('scrapedf.csv'))
+
+cdis <- df[df$screenName=="UChicagoCDIS",]
+occ <- df[df$screenName=="OCC_Data",]
+
+#create date and time fields
+df$date <- as.Date(as.POSIXct(df$created))
+df$time <- strftime(df$created, format="%H:%M:%S")
+```
+
+
+
+# References 
+
+* [https://www.r-bloggers.com/how-to-use-r-to-scrape-tweets-super-tuesday-2016/](https://www.r-bloggers.com/how-to-use-r-to-scrape-tweets-super-tuesday-2016/)
+

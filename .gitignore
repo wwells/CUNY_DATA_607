@@ -10,3 +10,4 @@ CUNY-DATA-607-2-Group-Project
 *_files/
 *.RData
 P4creds.R
+FPCredentials.R

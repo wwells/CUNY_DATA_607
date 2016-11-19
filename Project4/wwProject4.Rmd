@@ -19,7 +19,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 For Project 4, we are asked to take information from a relational database and migrate it to a NoSQL database of your own choosing.   For this project, we will use MySQL for our relational database, and Neo4j for our NoSQL database. 
 
-We will use the flights database, which is based on Hadley Wickham's 'nycflights13' package.    Since this assignment focuses on exporting from NoSQL, we have provided a flightsdb.sql script that will create a database with 5 tables.  
+We will use the flights database, which is based on Hadley Wickham's 'nycflights13' package.    Since this assignment focuses on exporting from NoSQL, we have provided a [flightsdb.sql](https://github.com/wwells/CUNY_DATA_607/blob/master/Project4/flightsdb.sql) script that will create a database with 5 tables.  
 
 We will focus on the following tables, likely to have a relationship infrastructure that could be improved by storing in a graph database:
 
@@ -259,5 +259,5 @@ For structured and more static data, traditional relational databases like MySQL
 # References 
 
 * [http://stackoverflow.com/questions/25295590/how-to-create-nodes-in-rneo4j-using-vectors-or-dataframes](http://stackoverflow.com/questions/25295590/how-to-create-nodes-in-rneo4j-using-vectors-or-dataframes)
-* [Nicole White, author of RNeo4J Package](nicolewhite.github.io/)
+* [Nicole White, author of RNeo4J Package](https://nicolewhite.github.io/)
 
