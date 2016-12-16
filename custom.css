@@ -1,7 +1,4 @@
-
-pre:nth-child(2n){
+code:not(.sourceCode.r){
   font-weight: 500;
   color: black;
 }
-
-
