@@ -44,7 +44,9 @@ I expect to encounter challenges related to:
 ```{r, warning=FALSE, message=FALSE}
 if (!require("RMySQL")) install.packages('RMySQL')
 if (!require('plyr')) install.packages ('plyr')
+if (!require('dplyr')) install.packages ('dplyr')
 if (!require('stringr')) install.packages ('stringr')
+if (!require('ggplot2')) install.packages ('ggplot2')
 ```
 
 # Data Acquisition
@@ -117,8 +119,6 @@ I used AWS Cloudwatch to set alerts and configure a small dashboard where I coul
 #use popular result type to at least get a few (returns < 20, but in needed time frame)
 d2 <- searchTwitter("#hairspraylive", since='2016-12-08', until='2016-12-09', lang="en", resultType="popular")
 
-#combine with df that returned 100k, but missing 4 hrs.
-
 ```
 
 # Data Management
@@ -148,7 +148,7 @@ dbDisconnect(mydb)
 
 ## Pulling DF into R
 
-```{r}
+```{r, cache=TRUE}
 mydb = dbConnect(MySQL(), user='root', dbname='hairsprayTwitter', host='localhost')
 query = dbSendQuery(mydb, 
                     "SELECT text, created, retweetCount, isRetweet, retweeted 
@@ -169,17 +169,139 @@ To help standardize data acquired, the Twitter API assigns every observation a "
 ```{r}
 #create date and time fields
 HS.df$created <- strptime(HS.df$created, "%Y-%m-%d %H:%M:%S", tz = "GMT")
-HS.df$date <- format(HS.df$created, "%Y-%m-%d")
+HS.df$date <- format(HS.df$created, "%m-%d")
 HS.df$time <- format(HS.df$created, "%H:%M:%S")
 HS.df$hour <- format(HS.df$created, "%H")
+HS.df$ID <- format(HS.df$created, "%d:%H")
+```
+
+##### Mosaic Plot, Hourly Tweets
+
+```{r}
 plot(table(HS.df$date, HS.df$hour))
 ```
 
+## Opinion Lexicon
 
+### Pull Established Opinion Lexicon
+
+Pulled from [Hu and Liu-University of Illinois @ Chicago](https://www.cs.uic.edu/~liub/FBS/sentiment-analysis.html#lexicon).   See References.  
+
+```{r}
+pos <- scan('opinion-lexicon-English/positive-words.txt',
+                  what='character', comment.char=';')
+neg <- scan('opinion-lexicon-English/negative-words.txt',
+                  what='character', comment.char=';')
+```
+
+### Customize Opinion Lexicon
+
+This is done based upon the iterative process detailed further along (see:  Sentiment Analysis: Improving Lexicon) as we look at tweets that eluded scores.   Some should have a score of 0 as there is no obvious sentiment.   Others, we can catch and improve our classifier by reviewing samples and customizing our corpus.  
+
+We will also try and add the most obvious [emojis](https://github.com/today-is-a-good-day/Emoticons/blob/master/emDict.csv).  
+
+```{r}
+pos <- c(pos, "excited", "friend", "honor", "cuddles", "warm", "favorite",
+         "real", "hearts", "gift", "heavens", "jubilant", "exhilarating", "proud",
+         "amazing", "happy", "queen", "love", "respect", "rocks", 
+         "<ed><a0><bd><ed><b2><93>", "<ed><a0><bd><ed><b3><a3>", "<e2><99><a1>")
+neg <- c(neg, "<ed><a0><bd><ed><b2><a9>")
+```
+
+# Sentiment Analysis
+
+The function below compares the text of our tweets again our postive and negative lists.   
+
+```{r}
+score.sentiment <- function(sentences, good_text, bad_text, .progress='none'){
+    scores = laply(sentences, function(sentence, good_text, bad_text) {
+        
+        # clean text
+        sentence <- gsub('[[:punct:]]', '', sentence)
+        sentence <- gsub('[[:cntrl:]]', '', sentence)
+        sentence <- gsub('\\d+', '', sentence)
+        sentence <- iconv(sentence, 'latin1', 'ASCII', 'byte')
+        sentence <- tolower(sentence)        
+        words <- unlist(str_split(sentence, '\\s+'))
+        
+        # compare to lexicon
+        pos.matches <- !is.na(match(words, good_text))
+        neg.matches <- !is.na(match(words, bad_text))
+        
+        # calc score as difference between two
+        score <- sum(pos.matches) - sum(neg.matches)
+        
+        return(score)
+    }, good_text, bad_text, .progress=.progress )
+    return(scores)
+}
+```
+
+## Score Data
+
+```{r}
+HS.df$score <- score.sentiment(HS.df$text, pos, neg)
+```
+
+## Improving Lexicon
+
+We will try to improve the quality of our lexicon by looking for entries that come up as score=0 and seeing if there are words that should be obviously classified in a particular direction. 
+
+```{r}
+zeros <- HS.df[HS.df$score == 0,]
+sample(zeros$text, 5)
+```
+
+## Distribution of Scores
+
+```{r}
+qplot(factor(HS.df$score), fill=factor(HS.df$date), geom="bar", xlab = "Sentiment Score")
+```
+
+We can also take the mean of our distribution to find that the overall sentiment (including 0s) is `r mean(HS.df$score)`.
+
+### What do the extremes look like?
+
+```{r}
+low <- HS.df$text[HS.df$score==-5]
+low
+high <- HS.df$text[HS.df$score==7]
+high
+```
+
+## Sentiment Over Time
+
+Calculate the mean sentiment for each hour.
+
+```{r}
+hourmean <- aggregate(HS.df[,10], list(HS.df$ID), mean)
+names(hourmean) <- c("ID", "Mean")
+
+ggplot(hourmean, aes(x=ID, y=Mean)) + geom_line(group=1) + geom_vline(xintercept = c(26, 28), linetype="dashed", color="green") + annotate("rect", fill="red", alpha = 0.5, xmin=25, xmax=28, ymin=-Inf, ymax=Inf)
+```
+
+### With Score == 0 removed
+
+```{r}
+nozeros <- HS.df[!HS.df$score == 0,]
+hourmean_n <- aggregate(nozeros[,10], list(nozeros$ID), mean)
+
+## looks like we lost an hour obvservation that was a tweet with 0 sentiment 
+## let's add back in as the same value as it's neighbors = 1
+hourmean_n <- rbind(hourmean_n[1:26,], c("08:02", 1.000000), hourmean_n[27:95,] )
+names(hourmean_n) <- c("ID", "Mean")
+
+ggplot(hourmean_n, aes(x=ID, y=Mean)) + geom_line(group=1) + geom_vline(xintercept = c(26, 28), linetype="dashed", color="green") + annotate("rect", fill="red", alpha = 0.5, xmin=25, xmax=28, ymin=-Inf, ymax=Inf)
+```
+
+Here, we can also see that as compared to our score mean that included tweets w/o a sentiment weight (`r mean(HS.df$score)`), our mean sentiment is `r mean(nozeros$score)`. 
+
+# Conclusion
 
 # References 
 
 * [Rstudio in EC2](http://strimas.com/r/rstudio-cloud-1/)
 * [Rstudio AMI](http://www.louisaslett.com/RStudio_AMI/)
+* [A list 6800 of English positive and negative opinion words - (Hu and Liu, KDD-2004), University of Illinois @ Chicago](https://www.cs.uic.edu/~liub/FBS/sentiment-analysis.html#lexicon)
 * [https://www.r-bloggers.com/how-to-use-r-to-scrape-tweets-super-tuesday-2016/](https://www.r-bloggers.com/how-to-use-r-to-scrape-tweets-super-tuesday-2016/)
-
+* [Handling Emoticons in r](http://opiateforthemass.es/articles/emoticons-in-R/)
