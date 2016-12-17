@@ -22,22 +22,12 @@ The CUNY DATA 607 final project is an opportunity to learn more about working wi
 
 Because of the unique temporal nature of Twitter, we create a dataset culled from tweets of a popular live event with a curated hashtag:   The NBC airing of the live Hairspray musical on December 7th, 2016 (Dec 8, GMT) - #hairspraylive.  
 
-We acquire the dataset after the live airing using the Twitter API.  Because of the nuances of the API and overall volume, our scrape will be split into days and use AWS EC2 to issue GET requests and a MySQL database for storage of results.   
+We acquired the dataset after the live airing using the Twitter API.  Because of the nuances of the API and overall volume, our scrape will be split into days and use AWS EC2 to issue GET requests and a MySQL database for storage of results.   
 
-Our dataset can then be explored to look at: 
+This scraped data will then be used in correlation with a positive/negative word lexicon to conduct analysis of: 
 
-* Sentiment as a TimeSeries- both during and around the event
-* Volume and RT as TimeSeries
-
-This scraped data could then be used in correlation with a positive/negative word lexicon to conduct a sentiment analysis. 
-
-I expect to encounter challenges related to:
-
-* How to weigh / measure RTs in a sentiment analysis
-* How to predict or remove spam bot RTs.  
-* If scraping multiple times, how to handle differences or duplicates in data.  
-* Potential limitations in availability of scraped data. 
-* Potential for misinterpreted hastags (eg - someone tweeting about #hairspray that is actually talking about their aquanet sprayed beehive)
+* Overall Sentiment
+* Sentiment as a TimeSeries
 
 # Environment Prep
 
@@ -47,15 +37,16 @@ if (!require('plyr')) install.packages ('plyr')
 if (!require('dplyr')) install.packages ('dplyr')
 if (!require('stringr')) install.packages ('stringr')
 if (!require('ggplot2')) install.packages ('ggplot2')
+if (!require('reshape2')) install.packages ('reshape2')
 ```
 
 # Data Acquisition
 
 ## AWS EC2
 
-This is a popular event and grabbing all the data is time consuming.   While the final dataset isn't particularly large, it was challenging to manage the acquisition via the Twitter API.   
+This is a popular event and grabbing all the data provided to be extremely challenging and time consuming.   While the final dataset isn't particularly large, it was challenging to manage the acquisition via the Twitter API.   
 
-[This great walkthrough](http://strimas.com/r/rstudio-cloud-1/) helped a noob like me use RStudio in AWS EC2 and access both from CLI and in a browser.   [Louis Aslett](http://www.louisaslett.com/RStudio_AMI/) is kind enough to maintain an excellent Rstudio Amazon Machine Image (AMI) that also integrates with Dropbox, so it was reasonably trivial to save .csv files with generated/scraped data in Dropbox instead of an S3 bucket.  I spent some time configuring an instance of Rstudio, then saved as my own AMI so I could quickly and easily spin up additional instances with the same settings. 
+[This great walkthrough](http://strimas.com/r/rstudio-cloud-1/) helped a noob like me use RStudio in AWS EC2 and access both from CLI and in a browser.   [Louis Aslett](http://www.louisaslett.com/RStudio_AMI/) is kind enough to maintain an Rstudio Amazon Machine Image (AMI) that also integrates with Dropbox, so it was reasonably trivial to save .csv files with generated/scraped data in Dropbox instead of an S3 bucket.  I spent some time configuring an instance of Rstudio, then saved as my own AMI so I could quickly and easily spin up additional instances with the same settings. 
 
 I anticipate working this way often in the future.  
 
@@ -105,7 +96,7 @@ Twitter chokes API calls from a single IP address.   Below, you can see the peri
 
 ![Diminishing returns on GET calls toTwitter API](EC2NetworkIN.png)
 
-To solve this problem, I attempted to run these calls in parallel from 3 separate instances, each instance responsible for gathering data from a single day.  
+To solve this problem, I attempted to run these calls in parallel from separate instances, each instance responsible for gathering data from a single day.  
 
 SIDE NOTE:  Twitter has many disclaimers about their API - ultimately it is not a good resource for 'reproduceability'.  To test this, I ran the same query of data from 48hrs prior on two separate instances at the same time.   The resulting datasets were similar, but where one had 37.4k observations, the other had 39.2k.   Again, not ideal for reproduceability, but good enough for an informal sentiment analysis.
 
@@ -113,19 +104,37 @@ I used AWS Cloudwatch to set alerts and configure a small dashboard where I coul
 
 ![My Cloudwatch Dashboard](Dashboard.png)
 
-## Handling Day Of
+## Major Issue:  Handling Day Of
+
+There were serious problems acquiring the entire dataset.  Ultimately, the final dataset used to conduct analysis later is not appropriately complete.  
+
+The Twitter API does not permit pulling at a level more granular than date.  I attempted to pull day-of data from multiple EC2 VMs of different instance flavors over a span of about 1 week.  In the end, I had the following issues: 
+
+* the API would choke my GET request which resulted in the VM idling 
+* the GET request would complete, resulting in the appropriate R object.  Then the VM would crash when I attempted to get the data out of the VM.   
+
+The latter was particularly frustrating, as I "had" the data, but then couldn't transfer out without losing it.   In these instances where a GET completed, I saw between ~240,000 and ~600,000 tweets in that single day.   I tried:
+
+* saving as an R object and transfering using dropbox
+* saving as an R object and scping to local
+* saving as an R object and transfering to S3
+* snapshotting the instance before taking further action (still lost data in Rstudio)
+* saving as a csv and using any transfer method.  (note - was never able to get the large object to correctly transfer to df then to a csv before a crash)
+
+I did have a successful scrape using my local machine left overnight that resulted in a dataset of 100000 tweets.   The twitter API gives the most recent data first, so my 100k tweets ended at 23:59:59 GMT and went backwards to about 04:30:00 from there.   Unfortunately the show itself started at 01:00:00 GMT so my only successful pull was missing the show itself.   
+
+To compensate in some small way in the hopes of acquiring at least a few tweets during this time span, I used the resultType="popular" tag and was able to get at least 1 tweet for each missing hour.  This was then merged with the 100k data mentioned above.  See Mosaic Plot, Hourly Tweets below.
 
 ```{r, eval=FALSE}
 #use popular result type to at least get a few (returns < 20, but in needed time frame)
 d2 <- searchTwitter("#hairspraylive", since='2016-12-08', until='2016-12-09', lang="en", resultType="popular")
-
 ```
 
 # Data Management
 
 ## Storing in MySQL
 
-A better data scientist would have found a more elegant workflow for managing this data, but for now, saving data culled from VMs as csvs in Dropbox, then loading into a local MySQL database will do.   If the volume were much greater, a more refined approach would be paramount.   
+A better data scientist would have found a more elegant workflow for managing this data, but for now, saving data culled from VMs as csvs, then loading into a local MySQL database works.   If the volume were much greater, a more refined approach would be paramount.   
 
 ```{r, eval=FALSE}
 mydb = dbConnect(MySQL(), user='root', dbname='hairsprayTwitter', host='localhost')
@@ -148,13 +157,11 @@ dbDisconnect(mydb)
 
 ## Pulling DF into R
 
-```{r, cache=TRUE}
+```{r, cache=TRUE, warning=FALSE, message=FALSE}
 mydb = dbConnect(MySQL(), user='root', dbname='hairsprayTwitter', host='localhost')
 query = dbSendQuery(mydb, 
-                    "SELECT text, created, retweetCount, isRetweet, retweeted 
+                    "SELECT text, created, retweetCount, isRetweet
                     FROM hairsprayTwitter.tweets;")
-
-#Review - maybe don't need retweeted, d1 and d3 are all FALSE
 
 HS.df <- fetch(query, n=-1)
 dbDisconnect(mydb)
@@ -170,7 +177,6 @@ To help standardize data acquired, the Twitter API assigns every observation a "
 #create date and time fields
 HS.df$created <- strptime(HS.df$created, "%Y-%m-%d %H:%M:%S", tz = "GMT")
 HS.df$date <- format(HS.df$created, "%m-%d")
-HS.df$time <- format(HS.df$created, "%H:%M:%S")
 HS.df$hour <- format(HS.df$created, "%H")
 HS.df$ID <- format(HS.df$created, "%d:%H")
 ```
@@ -179,7 +185,11 @@ HS.df$ID <- format(HS.df$created, "%d:%H")
 
 ```{r}
 plot(table(HS.df$date, HS.df$hour))
+
+table(HS.df$date)
 ```
+
+Note that even though we are missing the full volume of crucial 4 hours from the day of the event, that day still has 135% more tweets than the other days combined.  
 
 ## Opinion Lexicon
 
@@ -210,7 +220,7 @@ neg <- c(neg, "<ed><a0><bd><ed><b2><a9>")
 
 # Sentiment Analysis
 
-The function below compares the text of our tweets again our postive and negative lists.   
+The function below compares the text of our tweets against our postive and negative lists.   It is inspired by the sentiment function described [here](https://www.r-bloggers.com/how-to-use-r-to-scrape-tweets-super-tuesday-2016/) - see References.
 
 ```{r}
 score.sentiment <- function(sentences, good_text, bad_text, .progress='none'){
@@ -271,37 +281,71 @@ high
 
 ## Sentiment Over Time
 
-Calculate the mean sentiment for each hour.
+Calculate the mean sentiment for each hour for our full dataset AND for our dataset with tweets with the sentiment score of 0 removed.
 
 ```{r}
-hourmean <- aggregate(HS.df[,10], list(HS.df$ID), mean)
-names(hourmean) <- c("ID", "Mean")
+hourmean <- aggregate(HS.df[,8], list(HS.df$ID), mean)
 
-ggplot(hourmean, aes(x=ID, y=Mean)) + geom_line(group=1) + geom_vline(xintercept = c(26, 28), linetype="dashed", color="green") + annotate("rect", fill="red", alpha = 0.5, xmin=25, xmax=28, ymin=-Inf, ymax=Inf)
-```
-
-### With Score == 0 removed
-
-```{r}
+## look at only those with a non zero sentiment score
 nozeros <- HS.df[!HS.df$score == 0,]
-hourmean_n <- aggregate(nozeros[,10], list(nozeros$ID), mean)
+hourmean_n <- aggregate(nozeros[,8], list(nozeros$ID), mean)
 
 ## looks like we lost an hour obvservation that was a tweet with 0 sentiment 
 ## let's add back in as the same value as it's neighbors = 1
-hourmean_n <- rbind(hourmean_n[1:26,], c("08:02", 1.000000), hourmean_n[27:95,] )
-names(hourmean_n) <- c("ID", "Mean")
+hourmean_n <- rbind(hourmean_n[1:26,], c("08:02", 1), hourmean_n[27:95,] )
+final <- cbind(hourmean, hourmean_n$x)
+names(final) <- c("ID", "AllData", "NoZero")
+final$NoZero <- as.numeric(as.character(final$NoZero))
 
-ggplot(hourmean_n, aes(x=ID, y=Mean)) + geom_line(group=1) + geom_vline(xintercept = c(26, 28), linetype="dashed", color="green") + annotate("rect", fill="red", alpha = 0.5, xmin=25, xmax=28, ymin=-Inf, ymax=Inf)
+# melt, to prepare for final visualization
+final2 <- melt(final, id="ID")
+```
+
+### Plot as time series
+
+```{r}
+ggplot(final2, aes(x=ID, y=value, group=variable, colour=variable)) + 
+    geom_line() + 
+    geom_vline(xintercept = c(26, 28), linetype="dashed", color="black") +
+    geom_text(aes(x=28, label="\n the show", y = 0.2), colour="black", angle=90) +
+    annotate("rect", fill="red", alpha = 0.1, xmin=25, xmax=28, ymin=-Inf, ymax=Inf) +
+    geom_text(aes(x=28, label="\n the missing data", y = 1.15), 
+              colour="red", angle=90) +
+    geom_vline(xintercept = c(0), linetype="longdash", color="grey") +
+    geom_text(aes(x=0, label="\n day before", y = 0.1), colour="grey", angle=90) +
+    geom_vline(xintercept = c(25), linetype="longdash", color="grey") +
+    geom_text(aes(x=25, label="day of \n", y = 0.1), colour="grey", angle=90) +
+    geom_vline(xintercept = c(49), linetype="longdash", color="grey") +
+    geom_text(aes(x=49, label="1 day after \n", y = 0.1), colour="grey", angle=90) +
+    geom_vline(xintercept = c(73), linetype="longdash", color="grey") +
+    geom_text(aes(x=73, label="2 day after \n", y = 0.1), colour="grey", angle=90) +
+    ylab("Sentiment Score") + 
+    ggtitle("#hairspraylive Sentiment Analysis \n Mean Hourly Score") +
+    theme(axis.title.x=element_blank(), axis.text.x=element_blank(), 
+          axis.ticks.x=element_blank())
 ```
 
 Here, we can also see that as compared to our score mean that included tweets w/o a sentiment weight (`r mean(HS.df$score)`), our mean sentiment is `r mean(nozeros$score)`. 
 
+However, since we removed the steady hand of 0, our variability goes up: 
+
+* SD - Full data set:  `r sd(HS.df$score)`
+* SD - No zeros:  `r sd(nozeros$score)`
+
+It is also interesting to note that the sentiment during the 'hype' period (day before) is pretty similar to the sentiment after the event.   We see a slight drop off after 48 hrs.
+
 # Conclusion
+
+This was an excellent learning experience on how to handle the TwitterAPI (in its current state), manage Rstudio AMI in AWS EC2, and conduct a sentiment analysis. 
+
+The limitations acquiring the desired data made one of our secondary goals impossible - to conduct a minute-by-minute sentiment analysis during the live show itself and see if there were obvious correlations to the contents of the show. 
+
+Were I to do this again, I would attempt to use some separate functionality to acquire twitter data as a live stream instead of trying to GET past data.  While I don't think I came up with an ideal solution by any means, this type of project helps show the importance of creating a data acquisition and management architecture well suited for the task at hand.  
 
 # References 
 
 * [Rstudio in EC2](http://strimas.com/r/rstudio-cloud-1/)
 * [Rstudio AMI](http://www.louisaslett.com/RStudio_AMI/)
-* [A list 6800 of English positive and negative opinion words - (Hu and Liu, KDD-2004), University of Illinois @ Chicago](https://www.cs.uic.edu/~liub/FBS/sentiment-analysis.html#lexicon)
 * [https://www.r-bloggers.com/how-to-use-r-to-scrape-tweets-super-tuesday-2016/](https://www.r-bloggers.com/how-to-use-r-to-scrape-tweets-super-tuesday-2016/)
+* [A list 6800 of English positive and negative opinion words - (Hu and Liu, KDD-2004), University of Illinois @ Chicago](https://www.cs.uic.edu/~liub/FBS/sentiment-analysis.html#lexicon)
 * [Handling Emoticons in r](http://opiateforthemass.es/articles/emoticons-in-R/)
